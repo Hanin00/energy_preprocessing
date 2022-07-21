@@ -10,13 +10,13 @@ import numpy as np
 # data1908 = pd.read_csv('./data/tb_env_log_201908.csv', delimiter=';')
 # data1909 = pd.read_csv('./data/tb_env_log_201909.csv', delimiter=';')
 
-#pd.set_option('display.max_columns', None)
+pd.set_option('display.max_columns', None)
 
 
 name = 'tb_env_log_201903'
 
-listA = ['tb_env_log_201902','tb_env_log_201903','tb_env_log_201904','tb_env_log_201905','tb_env_log_201906','tb_env_log_201907','tb_env_log_201908','tb_env_log_201909']
-#listA = ['tb_meter_log_201804']
+#listA = ['tb_env_log_201902','tb_env_log_201903','tb_env_log_201904','tb_env_log_201905','tb_env_log_201906','tb_env_log_201907','tb_env_log_201908','tb_env_log_201909']
+listA = ['tb_meter_log_201804','tb_meter_log_201805','tb_meter_log_201808']
 
 for name in listA :
     path = './data/' + name + '.csv'
@@ -57,7 +57,12 @@ for name in listA :
     201908  8564     
     201909  8632     
     
-    tb_meter_log_201804 : 2018-04-20 14:06:27 ~ 2018-04-30 23:57:50 
-    결측치 없음
+    tb_meter_log_201804 : 2018-04-20 14:06:27 ~ 2018-04-30 23:57:50  결측치 없음
+    tb_meter_log_201805 : 2018-05-01 00:00:50 ~ 2018-05-31 23:58:02  결측치 없음
+    
+    
+    
+    tb_meter_log_201808 : 2018-08-01 00:01:46 ~ 2018-08-05 16:14:39  결측치 없음
+    
     
     '''
