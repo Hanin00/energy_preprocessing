@@ -1,27 +1,68 @@
+import sys
+import pickle
 import pandas as pd
 import numpy as np
 
-#data1902 = pd.read_csv('./data/tb_env_log_201902.csv', delimiter=';')
-# data1903 = pd.read_csv('./data/tb_env_log_201903.csv', delimiter=';')
-# data1904 = pd.read_csv('./data/tb_env_log_201904.csv', delimiter=';')
-# data1905 = pd.read_csv('./data/tb_env_log_201905.csv', delimiter=';')
-# data1906 = pd.read_csv('./data/tb_env_log_201906.csv', delimiter=';')
-# data1907 = pd.read_csv('./data/tb_env_log_201907.csv', delimiter=';')
-# data1908 = pd.read_csv('./data/tb_env_log_201908.csv', delimiter=';')
-# data1909 = pd.read_csv('./data/tb_env_log_201909.csv', delimiter=';')
 
 pd.set_option('display.max_columns', None)
 
+#with open("./data/envLog1902-09.pickle", "rb") as fr:
+with open("./data/mtLogTotal.pickle", "rb") as fr:
+    totalPd = pickle.load(fr)
+
+print(totalPd['gas_value'])
+print(totalPd['water_value'])
+sys.exit()
+
+# totalPd = totalPd.replace(0.0, np.NaN)
+# totalPd = totalPd.replace(0, np.nan)
+
+
+
+
+
+# print(totalPd.notnull().sum())
+# print(totalPd.info())
+
+
+df = totalPd.copy()
+
+
+df.set_index('updated', inplace=True)
+
+print("일별 데이터 평균 개수 : ")
+print(str((df.groupby(pd.Grouper(freq='D')).count().mean()) ))
+print("주별 데이터 평균 개수 : ")
+print(str((df.groupby(pd.Grouper(freq='W')).count().mean()) ))
+print("월별 데이터 평균 개수 : " )
+print(str((df.groupby(pd.Grouper(freq='M')).count().mean()) ))
+
+sys.exit()
+
+
+
+# df['day']=df.index.day
+# df['week']=df.index.week
+# df['month']=df.index.month
+# df['year']=df.index.year
+# dfin = df.groupby(['year', 'month','week','day']).size()
+
+
+sys.exit()
+
+
+
+
+
 
 name = 'tb_env_log_201903'
-
 #listA = ['tb_env_log_201902','tb_env_log_201903','tb_env_log_201904','tb_env_log_201905','tb_env_log_201906','tb_env_log_201907','tb_env_log_201908','tb_env_log_201909']
 listA = ['tb_meter_log_201804','tb_meter_log_201805','tb_meter_log_201806','tb_meter_log_201807','tb_meter_log_201808']
-listA = ['tb_meter_log_201805',]
+#listA = ['tb_meter_log_201805',]
 
 
 for name in listA :
-    path = './data/' + name + '.csv'
+    path = './data/envLog/' + name + '.csv'
     data = pd.read_csv(path, delimiter=';')
 
     # 날짜순, meter_id 별 정렬 후 reset_index
