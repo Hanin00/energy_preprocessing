@@ -16,7 +16,9 @@ pd.set_option('display.max_columns', None)
 name = 'tb_env_log_201903'
 
 #listA = ['tb_env_log_201902','tb_env_log_201903','tb_env_log_201904','tb_env_log_201905','tb_env_log_201906','tb_env_log_201907','tb_env_log_201908','tb_env_log_201909']
-listA = ['tb_meter_log_201804','tb_meter_log_201805','tb_meter_log_201808']
+listA = ['tb_meter_log_201804','tb_meter_log_201805','tb_meter_log_201806','tb_meter_log_201807','tb_meter_log_201808']
+listA = ['tb_meter_log_201805',]
+
 
 for name in listA :
     path = './data/' + name + '.csv'
@@ -57,12 +59,17 @@ for name in listA :
     201908  8564     
     201909  8632     
     
-    tb_meter_log_201804 : 2018-04-20 14:06:27 ~ 2018-04-30 23:57:50  결측치 없음
-    tb_meter_log_201805 : 2018-05-01 00:00:50 ~ 2018-05-31 23:58:02  결측치 없음
+
+    tb_meter_log_201804 : 2018-04-20 14:06:27 ~ 2018-04-30 23:57:50  결측치 없음   419724
+    tb_meter_log_201805 : 2018-05-01 00:00:50 ~ 2018-05-31 23:58:02  결측치 없음   1079782
+    tb_meter_log_201806 : 2018-06-01 00:01:02 ~ 2018-06-30 23:59:03  결측치 없음   1164594
+    tb_meter_log_201807 : 2018-07-01 00:02:03 ~ 2018-07-31 23:58:46  결측치 없음   1180909
+    tb_meter_log_201808 : 2018-08-01 00:01:46 ~ 2018-08-05 16:14:39  결측치 없음   188638
     
     
+    일자별로 몇 개씩 있는지 확인 필요
     
-    tb_meter_log_201808 : 2018-08-01 00:01:46 ~ 2018-08-05 16:14:39  결측치 없음
+    
     
     
     '''
