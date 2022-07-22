@@ -1,18 +1,3 @@
-import pandas as pd
-import numpy as np
-import random
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
-
-pd.set_option('display.max_columns', None)
-
-''' 학습/테스트 데이터 분할 '''
-path = './data/data-02-stock_daily.csv'
-data = pd.read_csv(path, delimiter=',')
-
-
-
-
 # ref) https://eunhye-zz.tistory.com/8#google_vignette
 
 import pandas as pd
@@ -25,6 +10,7 @@ from torch.utils.data import DataLoader # 데이터로더
 import torch.nn as nn
 import torch
 import torch.optim as optim
+import pickle
 import sys
 
 device = torch.device('cpu')
@@ -38,15 +24,22 @@ pd.set_option('display.max_columns', None)
 
 ''' 학습/테스트 데이터 분할 '''
 # 2년 간의 데이터
-path = './data/data-02-stock_daily.csv'
-data = pd.read_csv(path, delimiter=',')
+# with open("./data/envLog1902-09.pickle", "rb") as fr:
+#     totalPd = pickle.load(fr)
+
+with open("./data/mtLogTotal.pickle", "rb") as fr:
+   totalDf = pickle.load(fr)
+
+df = totalDf.sort_index(ascending=False)
+df = df[['power_value','gas_value', 'water_value']]
+
 
 # 7일간의 데이터가 입력으로 들어가고 batch size는 임의로 지정
 seq_length = 7
 batch = 100
 
 # 데이터를 역순으로 정렬하여 전체 데이터의 70% 학습, 30% 테스트에 사용
-df = data[::-1]
+df = df.sort_index(ascending=False)
 train_size = int(len(df)*0.7)
 train_set = df[0:train_size]
 test_set = df[train_size-seq_length:]
@@ -108,7 +101,7 @@ dataloader = DataLoader(dataset,
                         drop_last=True)
 
 # 설정값
-data_dim = 5 #특징값이 5개..!
+data_dim = 3 #특징값이 3개..(power_value, gas_value, water_value)
 hidden_dim = 10
 output_dim = 1
 learning_rate = 0.01

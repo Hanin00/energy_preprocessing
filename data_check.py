@@ -3,16 +3,22 @@ import pickle
 import pandas as pd
 import numpy as np
 
-
 pd.set_option('display.max_columns', None)
 
-#with open("./data/envLog1902-09.pickle", "rb") as fr:
-with open("./data/mtLogTotal.pickle", "rb") as fr:
+with open("./data/envLog1902-09.pickle", "rb") as fr:
+#with open("./data/mtLogTotal.pickle", "rb") as fr:
     totalPd = pickle.load(fr)
 
-print(totalPd['gas_value'])
-print(totalPd['water_value'])
+#totalPd.to_csv('./data/mtLogTotal.csv')
+totalPd.to_csv('./data/envLog1902-09.csv')
 sys.exit()
+
+
+
+
+
+
+
 
 # totalPd = totalPd.replace(0.0, np.NaN)
 # totalPd = totalPd.replace(0, np.nan)
