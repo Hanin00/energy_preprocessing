@@ -15,11 +15,6 @@ sys.exit()
 
 
 
-
-
-
-
-
 # totalPd = totalPd.replace(0.0, np.NaN)
 # totalPd = totalPd.replace(0, np.nan)
 
@@ -58,9 +53,6 @@ sys.exit()
 
 
 
-
-
-
 name = 'tb_env_log_201903'
 #listA = ['tb_env_log_201902','tb_env_log_201903','tb_env_log_201904','tb_env_log_201905','tb_env_log_201906','tb_env_log_201907','tb_env_log_201908','tb_env_log_201909']
 listA = ['tb_meter_log_201804','tb_meter_log_201805','tb_meter_log_201806','tb_meter_log_201807','tb_meter_log_201808']
@@ -83,12 +75,6 @@ for name in listA :
     print(pdData.head())
     print('\n' + "tail - " + name+"===========")
     print(pdData.tail())
-
-
-
-
-
-
 
 
     '''

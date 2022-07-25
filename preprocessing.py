@@ -3,9 +3,18 @@ import pandas as pd
 import numpy as np
 import pickle
 
+import csv
 
-#todo Guess?
-# dev_location도 같이 줄 필요가 있는가?
+tPd = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
+
+print(tPd.info())
+print(tPd.head(5))
+
+
+
+
+
+
 
 
 '''
@@ -56,6 +65,6 @@ import pickle
 #     totalPd = pickle.load(fr)
 # totalPd.to_csv('./data/envLog1902-09.csv')
 
-with open("./data/mtLogTotal.pickle", "rb") as fr:
-   totalPd = pickle.load(fr)
-totalPd.to_csv('./data/mtLogTotal.csv')
+# with open("./data/mtLogTotal.pickle", "rb") as fr:
+#    totalPd = pickle.load(fr)
+# totalPd.to_csv('./data/mtLogTotal.csv')

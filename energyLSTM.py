@@ -27,11 +27,11 @@ pd.set_option('display.max_columns', None)
 # with open("./data/envLog1902-09.pickle", "rb") as fr:
 #     totalPd = pickle.load(fr)
 
-with open("./data/mtLogTotal.pickle", "rb") as fr:
-   totalDf = pickle.load(fr)
 
-df = totalDf.sort_index(ascending=False)
-df = df[['power_value','gas_value', 'water_value']]
+df = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
+df = df.sort_index(ascending=False)
+#df = df[['power_value','gas_value', 'water_value']]
+df = df['power_value']
 
 
 # 7일간의 데이터가 입력으로 들어가고 batch size는 임의로 지정
