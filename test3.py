@@ -23,18 +23,6 @@ df.set_index('updated', inplace=True)
 
 df_intp_linear = df.interpolate()
 data_ski = df_intp_linear[["power_value"]]
-print(df_intp_linear[["power_value"]].isnull().sum)
-
-
-
-
-sys.exit()
-
-
-
-
-
-
 
 ## scaling
 data_ski = df[["power_value"]]
@@ -42,7 +30,6 @@ data_ski = df[["power_value"]]
 
 scaler = MinMaxScaler()
 data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
-
 
 # 일별예측량은 0일때 시작해서한 칸씩 미루면 되는 건가..?
 #window_size = 학습시 고려하는 이전 일자
@@ -66,14 +53,7 @@ def create_sequences(data, seq_length):
         ys.append(y)
     return np.array(xs), np.array(ys)
 
-
-
 data_X, data_Y = make_dataset(data_ski)
-
-print(data_X.shape)
-print(data_Y.shape)
-
-
 
 train_data, train_label = data_X[:-300], data_Y[:-300]
 test_data, test_label = data_X[-300:], data_Y[-300:]
@@ -172,12 +152,6 @@ for _ in range(len(X_test)):
     new_seq = np.append(new_seq, pred)
     new_seq = new_seq[1:]  ## index가 0인 것은 제거하여 예측값을 포함하여 20일치 데이터 구성
     test_seq = torch.from_numpy(new_seq).view(1, 20, 1).float()
-
-plt.plot(preds, label="Preds")
-plt.plot(y_test.detach().numpy(), label="Data")
-plt.legend()
-plt.show()
-
 
 
 

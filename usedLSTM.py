@@ -28,7 +28,6 @@ df.set_index('updated', inplace=True)
 
 df_intp_linear = df.interpolate()
 data_ski = df_intp_linear[["power_value"]]
-print(df_intp_linear[["power_value"]].isnull().sum)
 
 #data_ski.rename(columns={"종가": "Close"}, inplace=True)
 
@@ -155,11 +154,23 @@ for t in range(num_epochs):
     # Update parameters
     optimiser.step()
 
+## Train Fitting
+plt.title('graph1')
+plt.plot(y_train_pred.detach().numpy(), label="Preds")
+plt.plot(y_train.detach().numpy(), label="Real")
+plt.legend()
+plt.show()
+
+
 np.shape(y_train_pred)
-
-
 # make predictions
 y_test_pred = model(x_test)
+plt.title('graph2')
+plt.plot(y_test_pred.detach().numpy(), label="Preds")
+plt.plot(y_test.detach().numpy(), label="Real")
+plt.legend()
+plt.show()
+
 
 # invert predictions
 y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
@@ -167,10 +178,40 @@ y_train = scaler.inverse_transform(y_train.detach().numpy())
 y_test_pred = scaler.inverse_transform(y_test_pred.detach().numpy())
 y_test = scaler.inverse_transform(y_test.detach().numpy())
 
+
+
 # calculate root mean squared error
 trainScore = math.sqrt(mean_squared_error(y_train[:,0], y_train_pred[:,0]))
 print('Train Score: %.2f RMSE' % (trainScore))
 testScore = math.sqrt(mean_squared_error(y_test[:,0], y_test_pred[:,0]))
 print('Test Score: %.2f RMSE' % (testScore))
 
+plt.title('graph3')
+plt.plot(y_test_pred,label="Preds")
+plt.plot(y_test, label = "Real")
+plt.legend()
+plt.show()
 
+
+test_seq = x_test[:1]  ## X_test에 있는 데이터중 첫번째것을 가지고 옮
+preds = []
+
+
+
+for _ in range(len(x_test)):
+    # model.init_hidden(test_seq)
+    y_test_pred = model(test_seq)
+
+    pred = y_test_pred.item()
+    preds.append(pred)
+    new_seq = test_seq.numpy()
+    new_seq = np.append(new_seq, pred)
+    new_seq = new_seq[1:]  ## index가 0인 것은 제거하여 예측값을 포함하여 7일치 데이터 구성
+    test_seq = torch.from_numpy(new_seq).view(1, 6, 1).float()
+
+plt.title('graph4')
+plt.plot(preds, label="Preds")
+plt.plot(y_test, label="Data")
+#plt.plot(y_test.detach().numpy(), label="Data")
+plt.legend()
+plt.show()
