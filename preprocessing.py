@@ -28,9 +28,10 @@ tPd["pw_diff"] = tPd["power_value"].diff()
 
 print(tPd.head(100))
 print(tPd.info())
-#tPd = pd.read_csv('./data/target1021D.csv', encoding='utf-8',parse_dates=['updated'])
+#tPd = pd.read_csv('./data/target1021H_diff.csv', encoding='utf-8',parse_dates=['updated'])
 
 
+tPd.to_csv('./data/target102_3H_diff.csv')
 
 sys.exit()
 

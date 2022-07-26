@@ -196,8 +196,6 @@ plt.show()
 test_seq = x_test[:1]  ## X_test에 있는 데이터중 첫번째것을 가지고 옮
 preds = []
 
-
-
 for _ in range(len(x_test)):
     # model.init_hidden(test_seq)
     y_test_pred = model(test_seq)

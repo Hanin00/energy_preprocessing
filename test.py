@@ -119,9 +119,7 @@ y_test = torch.tensor(y_test).float()
 
 
 # Model Class 생성
-
 class CoronaVirusPredictor(nn.Module):
-
     def __init__(self, n_features, n_hidden, seq_len, n_layers=2):
         super(CoronaVirusPredictor, self).__init__()
         self.n_hidden = n_hidden
