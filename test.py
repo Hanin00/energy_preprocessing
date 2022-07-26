@@ -4,12 +4,8 @@ import sys
 import pandas as pd
 import numpy as np
 import pickle
-
 import csv
-
-
 import torch
-
 import os
 from tqdm import tqdm
 import seaborn as sns
@@ -55,7 +51,6 @@ df.Date = pd.to_datetime(df.Date)
 df.set_index('Date', inplace=True)
 
 
-
 lag_col= list(df.columns)
 
 lag_amount = 3
@@ -65,9 +60,6 @@ for col in lag_col:
         df['{0}_lag{1}'.format(col, i + 1)] = df['{}'.format(col)].shift(i + 1)
 
 df.dropna(inplace=True)
-
-
-
 
 
 X_cols = list(df.columns)

@@ -13,6 +13,13 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn import metrics
 import datetime
 
+
+'''
+    개선에 관한 의견
+    1. 누적 값이고, 각 3분 정도의 간격이 있다고 해도 항상 같은게 아니니까
+        누적 값 간 증가량을 특징으로 하면 더 잘 나올 듯(빈 값들은 보간하고)
+'''
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #데이터 불러오기
@@ -20,21 +27,17 @@ df = pd.read_csv('./data/target1021D.csv',parse_dates=['updated'],  encoding = '
 df.set_index('updated', inplace=True)
 
 #결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X)
-
 df_intp_linear = df.interpolate()
 data_ski = df_intp_linear[["power_value"]]
 
 ## scaling
-data_ski = df[["power_value"]]
-#data_ski.rename(columns={"종가": "Close"}, inplace=True)
-
 scaler = MinMaxScaler()
 data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
 
-# 일별예측량은 0일때 시작해서한 칸씩 미루면 되는 건가..?
+# 일 별 예측량은 0일때 시작해서 한 칸씩 미루면 되는 건가..?
 #window_size = 학습시 고려하는 이전 일자
 ## sequence data
-def make_dataset(data, window_size=20):
+def make_dataset(data, window_size=7):
     feature_list = []
     label_list = []
     for i in range(len(data) - window_size):
@@ -53,10 +56,11 @@ def create_sequences(data, seq_length):
         ys.append(y)
     return np.array(xs), np.array(ys)
 
-data_X, data_Y = make_dataset(data_ski)
+data_X, data_Y = make_dataset(data_ski)  #(1108,  1)
 
-train_data, train_label = data_X[:-300], data_Y[:-300]
-test_data, test_label = data_X[-300:], data_Y[-300:]
+train_data, train_label = data_X[:-300, ], data_Y[:-300, ]  #(788,20,1),(788, 1)
+test_data, test_label = data_X[-300:, ], data_Y[-300:,]  #(300, 20, 1), (300, 1)
+
 
 ## tensor set
 X_train = torch.from_numpy(train_data).float()
@@ -73,33 +77,41 @@ class LSTM_(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.input_dim = input_dim
-
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        h0, c0 = self.init_hidden(x)
-        out, (hn, cn) = self.lstm(x, (h0, c0))
+        # Initialize hidden state with zeros
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
+        # Initialize cell state
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
+        #out, (hn, cn) = self.lstm(x, (h0, c0))
+        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
         out = self.fc(out[:, -1, :])
-
         return out
 
-    def init_hidden(self, x):
-        self.h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
-        self.c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
 
-        return h0, c0
+    # def forward(self, x):
+    #     h0, c0 = self.init_hidden(x) #
+    #     out, (hn, cn) = self.lstm(x, (h0, c0))
+    #     out = self.fc(out[:, -1, :])
+    #     return out
+
+    # def init_hidden(self, x):
+    #     # self.h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
+    #     # self.c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
+    #     self.h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
+    #     self.c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
+    #     return h0, c0
 
 #Train loop
-model = LSTM_(input_dim=1, hidden_dim=30, output_dim=1, num_layers=2)
+model = LSTM_(input_dim=1, hidden_dim=32, output_dim=1, num_layers=2)
 loss_fn = torch.nn.MSELoss(reduction="sum")
 optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
 hist = np.zeros(200)
 
 for t in range(200):
-
     # Forward pass
     y_train_pred = model(X_train)
 
@@ -151,7 +163,7 @@ for _ in range(len(X_test)):
     new_seq = test_seq.numpy()
     new_seq = np.append(new_seq, pred)
     new_seq = new_seq[1:]  ## index가 0인 것은 제거하여 예측값을 포함하여 20일치 데이터 구성
-    test_seq = torch.from_numpy(new_seq).view(1, 20, 1).float()
+    test_seq = torch.from_numpy(new_seq).view(1, 7, 1).float()
 
 
 

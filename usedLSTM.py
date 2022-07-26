@@ -35,6 +35,7 @@ scaler = MinMaxScaler()
 data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
 
 
+
 # function to create train, test data given stock data and sequence length
 def load_data(stock, look_back):
     data_raw = stock.values  # convert to numpy array
@@ -104,7 +105,7 @@ class LSTM(nn.Module):
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
 
         # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop all the way to the start even after going through another batch
+        # If we don't, we'll backprop all the way to the start even after going thro`   ugh another batch
         out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
 
         # Index hidden state of last time step
@@ -136,7 +137,6 @@ for t in range(num_epochs):
     # Initialise hidden state
     # Don't do this if you want your LSTM to be stateful
     # model.hidden = model.init_hidden()
-
     # Forward pass
     y_train_pred = model(x_train)
 

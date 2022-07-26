@@ -23,8 +23,6 @@ from sklearn.metrics import mean_squared_error
 from pandas.plotting import register_matplotlib_converters
 from torch import nn, optim
 
-
-
 import sys
 #ref) https://rfriend.tistory.com/494 - resample
 import pandas as pd
@@ -35,24 +33,13 @@ import numpy as np
 pd.set_option('display.max_columns', None)
 #dev_id, dev_name, power_value, updated
 
-tp = pd.read_csv('./data/target102.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+tp = pd.read_csv('../data/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
 tp.set_index('updated', inplace=True)
 
 pd1D = tp.resample('1D').last()
 pd1D.to_csv('./data/target1021D.csv',sep=',')
 
 sys.exit()
-
-
-
-
-
-
-
-
-
-
-
 
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
@@ -67,7 +54,7 @@ rc('font', family=font_name)
 
 pd.set_option('display.max_columns', None)
 #데이터 불러오기
-df = pd.read_csv('./data/target102.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+df = pd.read_csv('../data/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
 df.set_index('updated', inplace=True)
 print(df.head(5))
 
