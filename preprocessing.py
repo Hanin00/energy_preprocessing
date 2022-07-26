@@ -5,10 +5,43 @@ import pickle
 
 import csv
 
+'''
+    분단위로 하면 증가량이 너무 적음 -> 시간 단위로 이산값(증가값)을 값으로 갖는 column을 추가하되, 
+    0.0이면 연산시 Nan 이 되니까 지수값 주기
+'''
+
+pd.set_option('display.max_rows', None)
 tPd = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
 
+# 시단위 데이터 집계 resample / https://rfriend.tistory.com/494
+tPd.set_index('updated', inplace=True)
+#tPd = tPd.resample('1H').last() #Nan 값이 많아서 3H로 변경
+tPd = tPd.resample('3H').last()
+
+#선형 보간
+df_intp_linear = tPd.interpolate()
+tPd["power_value"] = df_intp_linear[["power_value"]]
+
+# #누적값 차이를 시간대 별로 칼럼으로 갖도록, 시간대 없이 단순히 인덱스화 시킨 데이터도
+# 백분률 : .pct_change / 이산 : .diff
+tPd["pw_diff"] = tPd["power_value"].diff()
+
+print(tPd.head(100))
 print(tPd.info())
-print(tPd.head(5))
+#tPd = pd.read_csv('./data/target1021D.csv', encoding='utf-8',parse_dates=['updated'])
+
+
+
+sys.exit()
+
+
+
+
+## 시단위 데이터 집계 resample / https://rfriend.tistory.com/494
+# tPd = tPd.updated.resample('1H').last()
+# pd1D = tp.resample('1H').last()
+# print(tPd.head(100))
+# pd1D = tp.resample('1D').last() #하루 단위 resampling
 
 
 

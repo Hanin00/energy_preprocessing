@@ -28,11 +28,27 @@ pd.set_option('display.max_columns', None)
 #     totalPd = pickle.load(fr)
 
 
-df = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
-df = df.sort_index(ascending=False)
-#df = df[['power_value','gas_value', 'water_value']]
-df = df['power_value']
+# df = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
+# df = df.sort_index(ascending=False)
+# #df = df[['power_value','gas_value', 'water_value']]
+# df = df['power_value']
+#
+#
 
+
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+#데이터 불러오기
+df = pd.read_csv('./data/target1021D.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+df.set_index('updated', inplace=True)
+
+#결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X)
+df_intp_linear = df.interpolate()
+df = df_intp_linear[["power_value"]]
+
+## scaling
+scaler = MinMaxScaler()
+df["power_value"] = scaler.fit_transform(df["power_value"].values.reshape(-1, 1))
 
 # 7일간의 데이터가 입력으로 들어가고 batch size는 임의로 지정
 seq_length = 7
@@ -40,59 +56,51 @@ batch = 100
 
 # 데이터를 역순으로 정렬하여 전체 데이터의 70% 학습, 30% 테스트에 사용
 df = df.sort_index(ascending=False)
-train_size = int(len(df)*0.7)
-train_set = df[0:train_size]
-test_set = df[train_size-seq_length:]
 
-
-
-''' 데이터 스케일링 '''
-# 사용되는 설명 변수들의 크기가 서로 다르므로 각 컬럼을 0-1 사이의 값으로 스케일링
-
-# Input scale - StandardScaler : 표준화
-scaler_x = MinMaxScaler()  # 최대/최소 값이 각각 1,0이 되도록 스케일링
-scaler_x.fit(train_set.iloc[:, :-1])
-
-train_set.iloc[:, :-1] = scaler_x.transform(train_set.copy().iloc[:, :-1])
-test_set.iloc[:, :-1] = scaler_x.transform(test_set.copy().iloc[:, :-1])
-
-# Output scale
-scaler_y = MinMaxScaler()
-scaler_y.fit(train_set.iloc[:, [-1]])
-
-train_set.iloc[:, -1] = scaler_y.transform(train_set.copy().iloc[:, [-1]])
-test_set.iloc[:, -1] = scaler_y.transform(test_set.copy().iloc[:, [-1]])
 
 ''' 
     데이터 셋 생성 및 tensor 형태로 변환
     파이토치에서는 3D 텐서의 입력을 받으므로 torch.FloatTensor를 사용해 np.array -> tensor 형태로 변경
 '''
 
-# 데이터셋 생성 함수
-def build_dataset(time_series, seq_length):
-    dataX = []
-    dataY = []
-    for i in range(0, len(time_series)-seq_length):
-        _x = time_series[i:i+seq_length, :]
-        _y = time_series[i+seq_length, [-1]]
-        # print(_x, "-->",_y)
-        dataX.append(_x)
-        dataY.append(_y)
+# 일 별 예측량은 0일때 시작해서 한 칸씩 미루면 되는 건가..?
+#window_size = 학습시 고려하는 이전 일자
+## sequence data
+def make_dataset(data, window_size=7):
+    feature_list = []
+    label_list = []
+    for i in range(len(data) - window_size):
+        feature_list.append(np.array(data.iloc[i:i + window_size]))
+        label_list.append(np.array(data.iloc[i + window_size]))
 
-    return np.array(dataX), np.array(dataY)
+    return np.array(feature_list), np.array(label_list)
 
-trainX, trainY = build_dataset(np.array(train_set), seq_length)
-testX, testY = build_dataset(np.array(test_set), seq_length)
+def create_sequences(data, seq_length):
+    xs = []
+    ys = []
+    for i in range(len(data)-seq_length-1):
+        x = data[i:(i+seq_length)]
+        y = data[i+seq_length]
+        xs.append(x)
+        ys.append(y)
+    return np.array(xs), np.array(ys)
 
-# 텐서로 변환
-trainX_tensor = torch.FloatTensor(trainX)
-trainY_tensor = torch.FloatTensor(trainY)
+data_X, data_Y = make_dataset(df)  #(1108,  1)
 
-testX_tensor = torch.FloatTensor(testX)
-testY_tensor = torch.FloatTensor(testY)
+train_data, train_label = data_X[:-300, ], data_Y[:-300, ]  #(788,20,1),(788, 1)
+test_data, test_label = data_X[-300:, ], data_Y[-300:,]  #(300, 20, 1), (300, 1)
+
+
+## tensor set
+X_train = torch.from_numpy(train_data).float()
+y_train = torch.from_numpy(train_label).float()
+
+X_test = torch.from_numpy(test_data).float()
+y_test = torch.from_numpy(test_label).float()
+
 
 # 텐서 형태로 데이터 정의
-dataset = TensorDataset(trainX_tensor, trainY_tensor)
+dataset = TensorDataset(X_train, y_train)
 
 # 데이터로더는 기본적으로 2개의 인자를 입력받으며 배치크기는 통상적으로 2의 배수를 사용
 dataloader = DataLoader(dataset,
@@ -101,7 +109,7 @@ dataloader = DataLoader(dataset,
                         drop_last=True)
 
 # 설정값
-data_dim = 3 #특징값이 3개..(power_value, gas_value, water_value)
+data_dim = 1 #특징값이 3개..(power_value, gas_value, water_value)
 hidden_dim = 10
 output_dim = 1
 learning_rate = 0.01
@@ -207,17 +215,17 @@ model.eval()
 # 예측 테스트
 with torch.no_grad():
     pred = []
-    for pr in range(len(testX_tensor)):
+    for pr in range(len(X_test)):
 
         model.reset_hidden_state()
 
-        predicted = model(torch.unsqueeze(testX_tensor[pr], 0))
+        predicted = model(torch.unsqueeze(X_test[pr], 0))
         predicted = torch.flatten(predicted).item()
         pred.append(predicted)
 
     # INVERSE
-    pred_inverse = scaler_y.inverse_transform(np.array(pred).reshape(-1, 1))
-    testY_inverse = scaler_y.inverse_transform(testY_tensor)
+    pred_inverse = scaler.inverse_transform(np.array(pred).reshape(-1, 1))
+    testY_inverse = scaler.inverse_transform(y_test)
 
 def MAE(true, pred):
     return np.mean(np.abs(true-pred))

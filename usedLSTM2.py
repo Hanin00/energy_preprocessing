@@ -34,6 +34,7 @@ data_ski = df_intp_linear[["power_value"]]
 scaler = MinMaxScaler()
 data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
 
+
 # 일 별 예측량은 0일때 시작해서 한 칸씩 미루면 되는 건가..?
 #window_size = 학습시 고려하는 이전 일자
 ## sequence data
