@@ -58,12 +58,6 @@ df = df.replace(0.0, 0.00001)
 # 증가값이  0.0인 경우 ep
 
 
-
-
-
-
-
-
 ''' 
     데이터 셋 생성 및 tensor 형태로 변환
     파이토치에서는 3D 텐서의 입력을 받으므로 torch.FloatTensor를 사용해 np.array -> tensor 형태로 변경
