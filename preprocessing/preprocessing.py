@@ -11,27 +11,38 @@ import csv
 '''
 
 pd.set_option('display.max_rows', None)
-tPd = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
+tPd = pd.read_csv('../data/target102.csv', encoding='utf-8', parse_dates=['updated'])
+
+tPd.set_index('updated', inplace=True)
+tPd = tPd.resample('1H').last()
+df_intp_linear = tPd.interpolate()
+tPd["power_value"] = df_intp_linear[["power_value"]]
+tPd["pw_diff"] = tPd["power_value"].diff()
+
+print(tPd.head(10))
+print(tPd.tail(10))
+print(len(tPd))
+tPd.to_csv('./data/target102_1H_diff.csv')
+
+sys.exit()
+
 
 # 시단위 데이터 집계 resample / https://rfriend.tistory.com/494
 tPd.set_index('updated', inplace=True)
 #tPd = tPd.resample('1H').last() #Nan 값이 많아서 3H로 변경
-tPd = tPd.resample('3H').last()
-
+#tPd = tPd.resample('3H').last()
 #선형 보간
 df_intp_linear = tPd.interpolate()
 tPd["power_value"] = df_intp_linear[["power_value"]]
 
-# #누적값 차이를 시간대 별로 칼럼으로 갖도록, 시간대 없이 단순히 인덱스화 시킨 데이터도
+# #누적값 차이를 시간대 별로 칼럼으로 갖도록, 시간대 없이 단순히 인덱스 화 시킨 데이터도
 # 백분률 : .pct_change / 이산 : .diff
 tPd["pw_diff"] = tPd["power_value"].diff()
 
-print(tPd.head(100))
-print(tPd.info())
 #tPd = pd.read_csv('./data/target1021H_diff.csv', encoding='utf-8',parse_dates=['updated'])
 
 
-tPd.to_csv('./data/target102_3H_diff.csv')
+tPd.to_csv('./data/target102_1M_diff.csv')
 
 sys.exit()
 

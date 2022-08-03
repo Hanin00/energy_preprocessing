@@ -5,7 +5,7 @@ import numpy as np
 
 pd.set_option('display.max_columns', None)
 
-with open("./data/envLog1902-09.pickle", "rb") as fr:
+with open("../data/envLog1902-09.pickle", "rb") as fr:
 #with open("./data/mtLogTotal.pickle", "rb") as fr:
     totalPd = pickle.load(fr)
 

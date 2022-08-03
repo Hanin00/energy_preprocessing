@@ -38,7 +38,7 @@ from matplotlib import font_manager, rc
 font_name = font_manager.FontProperties(fname="c:/Windows/Fonts/malgun.ttf").get_name()
 rc('font', family=font_name)
 
-df = pd.read_csv('./data/target102.csv', encoding='utf-8',parse_dates=['updated'])
+df = pd.read_csv('../data/target102.csv', encoding='utf-8', parse_dates=['updated'])
 # 한국 일일확진자 변수 제거
 # df.drop(['Unnamed: 0'], axis=1, inplace=True)
 

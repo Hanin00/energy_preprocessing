@@ -20,7 +20,9 @@ from torch.autograd import Variable
 
 pd.set_option('display.max_columns', None)
 #데이터 불러오기
-df = pd.read_csv('./data/target1021D.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+#df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+df = pd.read_csv('../data/target1021D.csv', parse_dates=['updated'], encoding ='utf-8', )
+look_back = 7  # choose sequence length
 df.set_index('updated', inplace=True)
 
 
@@ -29,10 +31,15 @@ df.set_index('updated', inplace=True)
 df_intp_linear = df.interpolate()
 data_ski = df_intp_linear[["power_value"]]
 
+print(len(data_ski))
+sys.exit()
+
+
 #data_ski.rename(columns={"종가": "Close"}, inplace=True)
 
 scaler = MinMaxScaler()
 data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
+
 
 
 
@@ -86,16 +93,17 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         # Hidden dimensions
         self.hidden_dim = hidden_dim
-
         # Number of hidden layers
         self.num_layers = num_layers
 
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-
         # Readout layer
         self.fc = nn.Linear(hidden_dim, output_dim)
+
+
+
 
     def forward(self, x):
         # Initialize hidden state with zeros
@@ -115,6 +123,8 @@ class LSTM(nn.Module):
         # out.size() --> 100, 10
         return out
 
+
+
 model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
 
 loss_fn = torch.nn.MSELoss()
@@ -127,7 +137,7 @@ for i in range(len(list(model.parameters()))):
 
 # Train model
 #####################
-num_epochs = 100
+num_epochs = 200
 hist = np.zeros(num_epochs)
 
 # Number of steps to unroll

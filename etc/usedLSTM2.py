@@ -23,13 +23,15 @@ import datetime
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #데이터 불러오기
-df = pd.read_csv('./data/target1021D.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+df = pd.read_csv('../data/target102_3H_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
 #df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
 df.set_index('updated', inplace=True)
 
 #결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X)
-df_intp_linear = df.interpolate()
-data_ski = df_intp_linear[["power_value"]]
+# df_intp_linear = df.interpolate()
+# data_ski = df_intp_linear[["power_value"]]
+# data_ski = df[['power_value','pw_diff']]
+data_ski = df[['power_value']]
 
 ## scaling
 scaler = MinMaxScaler()
@@ -107,7 +109,7 @@ class LSTM_(nn.Module):
     #     return h0, c0
 
 #Train loop
-model = LSTM_(input_dim=2, hidden_dim=32, output_dim=1, num_layers=2)
+model = LSTM_(input_dim=1, hidden_dim=32, output_dim=1, num_layers=2)
 loss_fn = torch.nn.MSELoss(reduction="sum")
 optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
