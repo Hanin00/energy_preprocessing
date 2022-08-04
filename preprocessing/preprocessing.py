@@ -2,7 +2,7 @@ import sys
 import pandas as pd
 import numpy as np
 import pickle
-
+import datetime as dt
 import csv
 
 '''
@@ -13,16 +13,25 @@ import csv
 pd.set_option('display.max_rows', None)
 tPd = pd.read_csv('../data/target102.csv', encoding='utf-8', parse_dates=['updated'])
 
+
+
+
+#tPd.set_index('updated', inplace=True)
 tPd.set_index('updated', inplace=True)
-tPd = tPd.resample('1H').last()
+tPd = tPd.resample('1D').last()
 df_intp_linear = tPd.interpolate()
 tPd["power_value"] = df_intp_linear[["power_value"]]
 tPd["pw_diff"] = tPd["power_value"].diff()
+tPd['updated'] = tPd.index
+tPd['YearMonth'] = pd.to_datetime(tPd["updated"]).apply(lambda x: '{year}-{month}'.format(year=x.year, month=x.month))
 
-print(tPd.head(10))
-print(tPd.tail(10))
-print(len(tPd))
-tPd.to_csv('./data/target102_1H_diff.csv')
+grpdf = pd.DataFrame(tPd.groupby('YearMonth')['pw_diff'].sum())
+tPd['month'] = [grpdf.loc[s][0] for s in tPd['YearMonth']]
+
+tPd.to_csv('../data/target102_xML.csv')
+
+
+#일 별 데이터에 월 별, 3개월 별 max 값을 갖는 column을 갖는 pd를 xM과 xL로 사용
 
 sys.exit()
 

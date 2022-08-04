@@ -115,7 +115,7 @@ class Net(nn.Module):
                             batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim, bias=True)
 
-        # 학습 초기화를 위한 함수
+    # 학습 초기화를 위한 함수
     def reset_hidden_state(self):
         self.hidden = (
             torch.zeros(self.layers, self.seq_len, self.hidden_dim),
