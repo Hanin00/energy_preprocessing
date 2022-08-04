@@ -13,10 +13,10 @@ import sys
 
 
 #Skip connection
-class FcLSTMFcModel(nn.Module):
+class FcLSTMFcBlock(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, output_dim, whatisX):
         # num_layers : 2, hidden_dim : 32, input_dim : 1, self : LSTM(1,32,2,batch_firsttrue)
-        super(FcLSTMFcModel, self).__init__()
+        super(FcLSTMFcBlock, self).__init__()
 
         # base setting
         self.float_dtype = tf.float32
@@ -70,9 +70,9 @@ class PredictModel(nn.Module):
         self.hidden_dim = hidden_dim
         self.activate_func = tf.nn.relu
 
-        self.xSlstm = FcLSTMFcModel(input_dim, hidden_dim, num_layers, output_dim, 1)
-        self.xMlstm = FcLSTMFcModel(input_dim, hidden_dim, num_layers, output_dim, 0)
-        self.xLlstm = FcLSTMFcModel(input_dim, hidden_dim, num_layers, output_dim, 0)
+        self.xSlstm = FcLSTMFcBlock(input_dim, hidden_dim, num_layers, output_dim, 1)
+        self.xMlstm = FcLSTMFcBlock(input_dim, hidden_dim, num_layers, output_dim, 0)
+        self.xLlstm = FcLSTMFcBlock(input_dim, hidden_dim, num_layers, output_dim, 0)
 
 #        self.xSAr =
 
@@ -86,6 +86,11 @@ class PredictModel(nn.Module):
         concatRes = torch.cat((xSlstmRes,xMlstmRes,xLlstmRes), self.input_dim)
         fc1 = self.fc(concatRes[:, -1, :])
 
+        #todo fc의 각 값과 AR(Xs)을 concat -> horison 1 output을 얻을 수 있음. for 문으로 내보내는 부분을 원래 모델에서 살펴보기?
+
+        # xSinput 사용
+
+
         # generate predictions
         pred_ta = tf.TensorArray(self.float_dtype, size=self.horizon)
         # shape -> [batch_size, hw, D]
@@ -97,7 +102,6 @@ class PredictModel(nn.Module):
             nn_pred += ar_pred
 
             pred_ta = pred_ta.write(i, nn_pred)
-
 
 
     def input_layer(self, x,):
@@ -119,7 +123,7 @@ class PredictModel(nn.Module):
         :param scope:
         :return: the prediction with shape [..., D]
         """
-        keep_prob = 1.0 - self.dropout_rate_ph
+        keep_prob = 1.0 - self.dropout_rate_ph`
         with tf.compat.v1.variable_scope(scope, reuse=tf.compat.v1.AUTO_REUSE):
             horizon_w = self.get_weights('horizon_w', shape=[self.v, self.D])
             horizon_b = self.get_bias('horizon_b', shape=[self.D])
