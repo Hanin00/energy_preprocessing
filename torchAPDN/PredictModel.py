@@ -34,6 +34,8 @@ class PredictModel(nn.Module):
         self.activate_func = tf.nn.relu
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.fcToLSTM_layer = fcToLSTM_layer(self, x, hidden_dim, num_layers, whatIs)  # fc - lstm - fc fore
+        self.ar = nn.AR
+
         #self. # ar + fc
 
         #self.X_mid_skip_ph = tf.compat.v1.placeholder(self.float_dtype,shape=[None, self.n, self.T, self.D])
@@ -45,9 +47,8 @@ class PredictModel(nn.Module):
         self.xSlstm,(hnS, cnS) = self.fcToLSTM_layer(x_short_input, hidden_dim, num_layers,  1)
         self.xMlstm, (hnM, cnM) = self.fcToLSTM_layer(x_mid_input, hidden_dim, num_layers,  0)
         self.xLlstm, (hnL, cnL) = self.fcToLSTM_layer(x_long_input, hidden_dim, num_layers, 0)
-#        self.xSAr =
+        self.xSAr = se
 
-+
 
 
 
