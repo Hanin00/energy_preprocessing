@@ -33,7 +33,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #데이터 불러오기
-df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
+df = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding ='utf-8', ) #10분 단위의 계측치
 df.set_index('updated', inplace=True)
 #결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X) -> target102_3H_diff.CSV 는 이미 끝난 파일
 #df_intp_linear = df.interpolate()
@@ -98,10 +98,7 @@ sequence_num2 = 1 # xM, xL
 
 
 
-
-
-
-model = APSN(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+model = APDN(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
 
 loss_fn = torch.nn.MSELoss()
 

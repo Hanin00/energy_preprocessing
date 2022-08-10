@@ -1,52 +1,55 @@
-import sys
+# ref) https://eunhye-zz.tistory.com/8#google_vignette
 
+import pandas as pd
 import numpy as np
 import random
-import pandas as pd
-from pylab import mpl, plt
-
-from datetime import datetime
+import matplotlib.pyplot as plt
 import math, time
-import itertools
-import datetime
-from operator import itemgetter
-from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
-from math import sqrt
+from sklearn.metrics import mean_squared_error
 import torch
 import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import TensorDataset # 텐서데이터셋
+from torch.utils.data import DataLoader # 데이터로더
+import sys
+import math, time
+import itertools
+from datetime import datetime
+from operator import itemgetter
+from math import sqrt
 from torch.autograd import Variable
+import pickle
 
+device = torch.device('cpu')
 
+'''
+    이전 7일 간의 데이터를 기반으로 다음 날의 종가를 예측함 Sequence = 7, output dimension = 1
+    예측하기 위해 사용하는 데이터는 시가, 종가 등 총 5개의 column(Input demension)
+
+'''
 pd.set_option('display.max_columns', None)
+''' 학습/테스트 데이터 분할 '''
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
 #데이터 불러오기
-#df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
-df = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
-look_back = 7  # choose sequence length
+df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
 df.set_index('updated', inplace=True)
+#결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X) -> target102_3H_diff.CSV 는 이미 끝난 파일
+#df_intp_linear = df.interpolate()
+#df['power_value'] = df_intp_linear[['power_value', 'pw_diff']]
+#df = df[['power_value', 'pw_diff']]
+
+df = df[['power_value', ]]
+#print(len(df)) #8860
 
 
-## scaling 및 데이터 보간(누적 값이므로 선형 보간 사용함)
-
-df_intp_linear = df.interpolate()
-data_ski = df_intp_linear[["power_value"]] #159469
-
-#data_ski.rename(columns={"종가": "Close"}, inplace=True)
 
 scaler = MinMaxScaler()
-data_ski["power_value"] = scaler.fit_transform(data_ski["power_value"].values.reshape(-1, 1))
-
-
-
+df["power_value"] = scaler.fit_transform(df["power_value"].values.reshape(-1, 1))
 
 # function to create train, test data given stock data and sequence length
-'''
-    
-    meter
-    
-    
-'''
-def load_data(stock, look_back ):
+def load_data(stock, look_back):
     data_raw = stock.values  # convert to numpy array
     data = []
 
@@ -68,7 +71,7 @@ def load_data(stock, look_back ):
 
 
 look_back = 7  # choose sequence length
-x_train, y_train, x_test, y_test = load_data(data_ski, look_back)
+x_train, y_train, x_test, y_test = load_data(df, look_back)
 print('x_train.shape = ', x_train.shape)
 print('y_train.shape = ', y_train.shape)
 print('x_test.shape = ', x_test.shape)
@@ -84,47 +87,21 @@ print(y_train.size(),x_train.size())
 # Build model
 #####################
 input_dim = 1
-hidden_dim = 128
+hidden_dim = 32
 num_layers = 2
 output_dim = 1
-
+sequence_num1 = 0 # xS
+sequence_num2 = 1 # xM, xL
 
 # Here we define our model as a class
-class LSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers, output_dim):  #num_layers : 2, hidden_dim : 32, input_dim : 1, self : LSTM(1,32,2,batch_firsttrue)
-        super(LSTM, self).__init__()
-        # Hidden dimensions
-        self.hidden_dim = hidden_dim
-        # Number of hidden layers
-        self.num_layers = num_layers
-
-        # batch_first=True causes input/output tensors to be of shape
-        # (batch_dim, seq_dim, feature_dim)
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-        # Readout layer
-        self.fc = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, x):
-        # Initialize hidden state with zeros
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
-
-        # Initialize cell state
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
-
-        # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop  all the way to the start even after going thro`   ugh another batch
-        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
-
-        # Index hidden state of last time step
-        # out.size() --> 100, 32, 100
-        # out[:, -1, :] --> 100, 100 --> just want last time step hidden states!
-        out = self.fc(out[:, -1, :])
-        # out.size() --> 100, 10
-        return out
 
 
 
-model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+
+
+
+
+model = APDN(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
 
 loss_fn = torch.nn.MSELoss()
 
@@ -136,7 +113,7 @@ for i in range(len(list(model.parameters()))):
 
 # Train model
 #####################
-num_epochs = 200
+num_epochs = 100
 hist = np.zeros(num_epochs)
 
 # Number of steps to unroll

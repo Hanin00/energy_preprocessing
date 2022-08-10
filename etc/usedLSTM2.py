@@ -23,7 +23,7 @@ import datetime
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #데이터 불러오기
-df = pd.read_csv('../data/target102_3H_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
+df = pd.read_csv('../data/dailyPred/target102_3H_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
 #df = pd.read_csv('./data/target102_3H_diff.csv',parse_dates=['updated'],  encoding = 'utf-8', )
 df.set_index('updated', inplace=True)
 

@@ -93,6 +93,9 @@ dataloader = DataLoader(dataset,
                         shuffle=True,
                         drop_last=True)
 
+
+
+
 # 설정값
 data_dim = 5 #특징값이 5개..!
 hidden_dim = 10

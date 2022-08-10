@@ -13,52 +13,72 @@ import sys
 
 
 class PredictModel(nn.Module):
-    def __init__(self,input_dim, hidden_dim, num_layers, output_dim,X_short, X_mid, X_long):
+    def __init__(self,input_dim, hidden_dim, num_layers, output_dim, X):
         super(PredictModel, self).__init__()
-        self.output_dim = output_dim
-        self.input_dim = input_dim
+        self.output_dim = output_dim  # 128
+        self.input_dim = input_dim    # <-None
         self.dropout_rate_ph = 0.02
 
         #data
-        self.X_short = X_short
-        self.X_mid = X_mid
-        self.X_long = X_long
+        self.X_short = 144
+        self.X_mid = 7
+        self.X_long = 28
 
         #base
         self.fc = nn.Linear(hidden_dim, output_dim)
-        self.input_dim = input_dim
-        self.num_layers = num_layers
-        self.hidden_dim = hidden_dim
-        self.activate_func = tf.nn.relu
+        self.input_dim = input_dim #<-shape=(None, 12, 128)d
+        self.num_layers = num_layers  # 128
+        self.hidden_dim = hidden_dim  # 128
 
+        #layer
+        self.activate_func = tf.nn.relu
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.fcToLSTM_layer = fcToLSTM_layer(self, x, hidden_dim, num_layers, whatIs)  # fc - lstm - fc fore
+        #self. # ar + fc
 
         #self.X_mid_skip_ph = tf.compat.v1.placeholder(self.float_dtype,shape=[None, self.n, self.T, self.D])
         # shape -> [batch_size, T, v] #short term
-        x_short_input = self.input_layer(self.X_short)
+        x_short_input = self.input_layer(self.X)
         x_mid_input = self.input_layer(self.X_mid)  # mid term,
         x_long_input = self.input_layer(self.X_long)  # long term,
-        # self.xSlstm,(hnS, cnS) = fcToLSTM_layer(x_short_input, hidden_dim, num_layers,  1)
-        # self.xMlstm, (hnM, cnM) = fcToLSTM_layer(x_mid_input, hidden_dim, num_layers,  0)
-        # self.xLlstm, (hnL, cnL) = fcToLSTM_layer(x_long_input, hidden_dim, num_layers, 0)
+
+        self.xSlstm,(hnS, cnS) = self.fcToLSTM_layer(x_short_input, hidden_dim, num_layers,  1)
+        self.xMlstm, (hnM, cnM) = self.fcToLSTM_layer(x_mid_input, hidden_dim, num_layers,  0)
+        self.xLlstm, (hnL, cnL) = self.fcToLSTM_layer(x_long_input, hidden_dim, num_layers, 0)
 #        self.xSAr =
 
 
-    def forward(self, xSinput, xMinput, xLinput) :
+    def forward(self, xSinput, xMinput, xLinput, hidden_dim , num_layers, output_dim) :
         #todo xSinput는 xS의 input 수.. 아마..
         #xSlstmRes,(hnS, cnS) = self.xSlstm(xSinput, hidden_dim, num_layers, output_dim,1)
         xSlstmRes,(hnS, cnS) = fcToLSTM_layer(xSinput, hidden_dim, num_layers, output_dim,1)
         xMlstmRes, (hnM, cnM) = fcToLSTM_layer(xMinput, hidden_dim, num_layers, output_dim,0)
         xLlstmRes, (hnL, cnL) = fcToLSTM_layer(xLinput, hidden_dim, num_layers, output_dim,0)
-
         concatRes = torch.cat((xSlstmRes,xMlstmRes,xLlstmRes), self.input_dim)
         fc1 = self.fc(concatRes[:, -1, :])
 
+        #horisontal - predict?
+        for xs in xSinput :
+            ar_input = self.X_ph[ -self._hw:]
+
+
+            h0 = torch.zeros(num_layers, xs.size(0), hidden_dim).requires_grad_()
+            # Initialize cell state
+            c0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
+            out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
+
+        # generate predictions
+
 
         return fc1
+
+
+
+
         #
         # #todo fc의 각 값과 AR(Xs)을 concat -> horison 1 output을 얻을 수 있음. for 문으로 내보내는 부분을 원래 모델에서 살펴보기?
         #
-        # # xSinput 사용
+        # # xSinput 사
         #
         #
         # # generate predictions
@@ -68,18 +88,16 @@ class PredictModel(nn.Module):
         # for i in range(self.horizon):
         #     # shape -> [batch_size, D]
         #     nn_pred = self.nn_horizon_output_layer(output_state, 'nn_horizon' + str(i))
-        #     ar_pred = self.ar_horizon_output_layer(ar_input, 'ar_horizon' + str(i))
+        #     ar_pred = self.ar_horizon_output_layer(ar_input(short term), 'ar_horizon' + str(i) ( ar ) ) #horizon 개수.
         #     nn_pred += ar_pred
         #
         #     pred_ta = pred_ta.write(i, nn_pred)
 
-
-
-    def fcToLSTM_layer(self, x, hidden_dim, num_layers,  whatIs ):
-        if whatIs == 1 :
+    def fcToLSTM_layer(self, x, hidden_dim, num_layers,  whatIs, scope='fcToLSTM'):
+        if whatIs == 1 :  #short term data
             out = self.fc(x[:, -1, :])
             # out.size() -->
-        else :
+        else :  #long term data
             # Initialize hidden state with zeros
             h0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
             # Initialize cell state
@@ -92,9 +110,6 @@ class PredictModel(nn.Module):
             out = self.fc(out[:, -1, :])
             # out.size() --> 100, 10
         return out
-
-
-
 
     def nn_horizon_output_layer(self, x, scope='nn_horizon'):
         """ Generate a horizon prediction for the neural network part.
@@ -120,7 +135,7 @@ class PredictModel(nn.Module):
 
     def ar_horizon_output_layer(self, x, scope='ar_horizon'):
         """ Generate a horizon prediction for the auto regressive part.
-        :param x: a tensor with shape [..., hw, D]
+        :param x: a tensor with shape [..., hw, D] D : De
         :param scope:
         :return: the prediction with shape [..., D]
         """

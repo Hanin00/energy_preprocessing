@@ -29,11 +29,38 @@ import pandas as pd
 import sys
 import os
 import numpy as np
+import matplotlib
+
+
+
+
+matplotlib.rcParams['font.family'] ='Malgun Gothic'
+
+matplotlib.rcParams['axes.unicode_minus'] =False
 
 pd.set_option('display.max_columns', None)
 #dev_id, dev_name, power_value, updated
 
-tp = pd.read_csv('../data/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
+tp = pd.read_csv('../data/tb_2019_1M.csv', parse_dates=['updated'], encoding ='utf-8', )
+newTp = tp.set_index('updated')
+
+power_valuePlt = newTp[['power_value',]]
+pw_diffPlt = newTp[['pw_diff']]
+
+power_valuePlt['2019-01':'2019-12'].plot(title = '월별 누적 전력 소모량')
+pw_diffPlt['2019-01':'2019-12'].plot(title = '월별 전력 증가량')
+
+
+# power_valuePlt['2019':'2022'].plot(title = 'power_value')
+# pw_diffPlt['2019':'2022'].plot(title = 'pw_diff')
+plt.show()
+
+# tp = pd.read_csv('../data/target102_1D_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
+# print(tp.info())
+
+
+sys.exit()
+tp = pd.read_csv('../data/dailyPred/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
 tp.set_index('updated', inplace=True)
 
 pd1D = tp.resample('1D').last()
@@ -54,7 +81,7 @@ rc('font', family=font_name)
 
 pd.set_option('display.max_columns', None)
 #데이터 불러오기
-df = pd.read_csv('../data/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
+df = pd.read_csv('../data/dailyPred/target102.csv', parse_dates=['updated'], encoding ='utf-8', )
 df.set_index('updated', inplace=True)
 print(df.head(5))
 

@@ -5,20 +5,67 @@ import pickle
 import datetime as dt
 import csv
 
+
+
+
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+
+
 '''
     분단위로 하면 증가량이 너무 적음 -> 시간 단위로 이산값(증가값)을 값으로 갖는 column을 추가하되, 
     0.0이면 연산시 Nan 이 되니까 지수값 주기
 '''
 
+# # 연간 데이터 합치기
+# pd.set_option('display.max_rows', None)
+# pd.set_option('display.max_columns', None)
+# tPd = pd.read_csv('../data/tb_meter_log_201901.csv', encoding='utf-8', parse_dates=['updated'])
+
+
+
+
+
+#
+# csv1 = '../data/tb2019/tb_meter_log_201901.csv'
+# csv2 = '../data/tb2019/tb_meter_log_201902.csv'
+# csv3 = '../data/tb2019/tb_meter_log_201903.csv'
+# csv4 = '../data/tb2019/tb_meter_log_201904.csv'
+# csv5 = '../data/tb2019/tb_meter_log_201905.csv'
+# csv6 = '../data/tb2019/tb_meter_log_201906.csv'
+# csv7 = '../data/tb2019/tb_meter_log_201907.csv'
+# csv8 = '../data/tb2019/tb_meter_log_201908.csv'
+# csv9 = '../data/tb2019/tb_meter_log_201909.csv'
+# csv10 = '../data/tb2019/tb_meter_log_201910.csv'
+# csv11 = '../data/tb2019/tb_meter_log_201911.csv'
+# csv12 = '../data/tb2019/tb_meter_log_201912.csv'
+#
+#
+# print("*** Merging multiple csv files into a single pandas dataframe ***")
+
+# # merge files
+# dataFrame = pd.concat(
+#    map(pd.read_csv, [csv1,csv2,csv3,csv4,csv5,csv6,csv7,csv8,csv9,csv10,csv11,csv12]), ignore_index=True)
+# print(dataFrame.info())
+# print(dataFrame.head(5))
+# print(dataFrame.tail(5))
+
+# dataFrame.to_csv('../data/tb_meter_log_2019.csv')
+# sys.exit()
+
+tPd = pd.read_csv('../data/tb_meter_log_2019.csv', encoding='utf-8', parse_dates=['updated'])
+print(tPd.info())
+sys.exit()
+
+
+
 pd.set_option('display.max_rows', None)
-tPd = pd.read_csv('../data/target102.csv', encoding='utf-8', parse_dates=['updated'])
 
+tPd = pd.read_csv('../data/tb_meter_log_2019.csv', encoding='utf-8', parse_dates=['updated'])
+#tPd = pd.read_csv('../data/target102.csv', encoding='utf-8', parse_dates=['updated'])
 
-
-
-#tPd.set_index('updated', inplace=True)
 tPd.set_index('updated', inplace=True)
-tPd = tPd.resample('1D').last()
+tPd = tPd.resample('M').last()
 df_intp_linear = tPd.interpolate()
 tPd["power_value"] = df_intp_linear[["power_value"]]
 tPd["pw_diff"] = tPd["power_value"].diff()
@@ -28,7 +75,7 @@ tPd['YearMonth'] = pd.to_datetime(tPd["updated"]).apply(lambda x: '{year}-{month
 grpdf = pd.DataFrame(tPd.groupby('YearMonth')['pw_diff'].sum())
 tPd['month'] = [grpdf.loc[s][0] for s in tPd['YearMonth']]
 
-tPd.to_csv('../data/target102_xML.csv')
+tPd.to_csv('../data/tb_2019_1M.csv')
 
 
 #일 별 데이터에 월 별, 3개월 별 max 값을 갖는 column을 갖는 pd를 xM과 xL로 사용
