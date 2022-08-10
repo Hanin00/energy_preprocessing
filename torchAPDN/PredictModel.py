@@ -47,6 +47,9 @@ class PredictModel(nn.Module):
         self.xLlstm, (hnL, cnL) = self.fcToLSTM_layer(x_long_input, hidden_dim, num_layers, 0)
 #        self.xSAr =
 
++
+
+
 
     def forward(self, xSinput, xMinput, xLinput, hidden_dim , num_layers, output_dim) :
         #todo xSinput는 xS의 input 수.. 아마..

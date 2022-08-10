@@ -42,26 +42,21 @@ df["power_value"] = scaler.fit_transform(df["power_value"].values.reshape(-1, 1)
 '''
 
 # function to create train, test data given meter data and sequence length
-def load_data(meter, look_backTs, look_backTm, look_backTl):
+def load_data(meter, look_back):
     data_raw = meter.values  # convert to numpy array
     x = []
-    x_skip_tm = []
-    x_skip_tl = []
     # create all possible sequences of length look_back
     for index in range(len(data_raw) - look_backTs):
         x.append(data_raw[index: index + look_backTs])
-    for index in range(len(data_raw) - look_backTm):
-        x_skip_tm.append(data_raw[index: index + look_backTm])
-    for index in range(len(data_raw) - look_backTl):
-        x_skip_tl.append(data_raw[index: index + look_backTl])
 
-    test_set_size = int(np.round(0.2 * x.shape[0]))  # 220
-    train_set_size = x.shape[0] - (test_set_size)  # 881
-
+    test_set_size = int(np.round(0.2 * len(x)))
+    print("len(x[0]) : ", len(x)) # 159325
+    print("len(x[0]) : ", len(x[0])) # 144
+    print("test_set_size : ", test_set_size) # 29
+    train_set_size = len(x) - (test_set_size)  # 881
+    print("train_set_size : ", train_set_size) # 29
     # x_train = [x, x_skip_Tm, x_skip_Tl, label_s]
     # x_train = [x[:train_set_size, :-1, :], x_skip_ts[:train_set_size, :-1, :],  ]#(881,6,1) 이전 7일까지의 값을 사용하니까
-
-
 
     x_train = x[:train_set_size, :-1, :]  #
     y_train = x[:train_set_size, -1, :]  #
@@ -78,17 +73,26 @@ look_backTs = 144  # choose sequence length <- 10min * 144 = 1440 = 1Day
 look_backTm = 144*7  # choose sequence length <- 10min * 144 * 7 = 7Day <- 1008
 look_backTl = 144*7*4  # choose sequence length <- 10min * 144 * 7* 4= 28Day  <- 4032
 
-x_train, y_train, x_test, y_test = load_data(df["power_value"], look_backTs, look_backTm,
-                                             look_backTl)  # 6day is feature, cause use for 1 week is Long term
-# print('x_train.shape = ', x_train.shape)  # (127570, 6, 4)
-# print('y_train.shape = ', y_train.shape) #(127570, 4)
-# print('x_test.shape = ', x_test.shape)  #(31892, 6, 4)
-# print('y_test.shape = ', y_test.shape)  # (31892, 4)
+x_train, y_train, x_test, y_test = load_data(df["power_value"], look_backTs)  # 6day is feature, cause use for 1 week is Long term
+x_Tm_train, y_Tm_train, x_Tm_test, y_Tm_test = load_data(df["power_value"], look_backTm)  # 6day is feature, cause use for 1 week is Long term
+x_Tl_train, y_Tl_train, x_Tl_test, y_Tl_test = load_data(df["power_value"], look_backTl)  # 6day is feature, cause use for 1 week is Long term
+
+
 # make training and test sets in torch
 x_train = torch.from_numpy(x_train).type(torch.Tensor)
 x_test = torch.from_numpy(x_test).type(torch.Tensor)
 y_train = torch.from_numpy(y_train).type(torch.Tensor)
 y_test = torch.from_numpy(y_test).type(torch.Tensor)
+
+x_Tm_train = torch.from_numpy(x_Tm_train).type(torch.Tensor)
+x_Tm_test = torch.from_numpy(x_Tm_test).type(torch.Tensor)
+y_Tm_train = torch.from_numpy(y_Tm_train).type(torch.Tensor)
+y_Tm_test = torch.from_numpy(y_Tm_test).type(torch.Tensor)
+
+x_Tl_train = torch.from_numpy(x_Tl_train).type(torch.Tensor)
+x_Tl_test = torch.from_numpy(x_Tl_test).type(torch.Tensor)
+y_Tl_train = torch.from_numpy(y_Tl_train).type(torch.Tensor)
+y_Tl_test = torch.from_numpy(y_Tl_test).type(torch.Tensor)
 
 print(y_train.size(), x_train.size())
 
@@ -101,22 +105,24 @@ output_dim = 1
 
 # Here we define our model as a class
 class PredictModel(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, X):
+    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, X_short, X_mid,X_long):
         super(PredictModel, self).__init__()
         self.output_dim = output_dim  # 128
         self.input_dim = input_dim  # <-None
         self.dropout_rate_ph = 0.02
 
         # data
-        self.X_short = 144
-        self.X_mid = 7
-        self.X_long = 28
+        self.X_short = X_short
+        self.X_mid = X_mid
+        self.X_long = X_long
 
         # base
         self.fc = nn.Linear(hidden_dim, output_dim)
         self.input_dim = input_dim  # <-shape=(None, 12, 128)
         self.num_layers = num_layers  # 128
         self.hidden_dim = hidden_dim  # 128
+
+        self._hw = 144  #khop, 결과로 나올 시간들. 하루 예측을 하고 싶으니까, 10*144
 
         # layer
         self.activate_func = tf.nn.relu
@@ -126,13 +132,13 @@ class PredictModel(nn.Module):
 
         # self.X_mid_skip_ph = tf.compat.v1.placeholder(self.float_dtype,shape=[None, self.n, self.T, self.D])
         # shape -> [batch_size, T, v] #short term
-        x_short_input = self.input_layer(self.X)
-        x_mid_input = self.input_layer(self.X_mid)  # mid term,
-        x_long_input = self.input_layer(self.X_long)  # long term,
+        # x_short_input = self.input_layer(self.X_short)
+        # x_mid_input = self.input_layer(self.X_mid)  # mid term,
+        # x_long_input = self.input_layer(self.X_long)  # long term,
 
-        self.xSlstm, (hnS, cnS) = self.fcToLSTM_layer(x_short_input, hidden_dim, num_layers, 1)
-        self.xMlstm, (hnM, cnM) = self.fcToLSTM_layer(x_mid_input, hidden_dim, num_layers, 0)
-        self.xLlstm, (hnL, cnL) = self.fcToLSTM_layer(x_long_input, hidden_dim, num_layers, 0)
+        self.xSlstm, (hnS, cnS) = self.fcToLSTM_layer(X_short.size[0], hidden_dim, num_layers, 1)
+        self.xMlstm, (hnM, cnM) = self.fcToLSTM_layer(x_mid_input.size[0], hidden_dim, num_layers, 0)
+        self.xLlstm, (hnL, cnL) = self.fcToLSTM_layer(x_long_input.size[0], hidden_dim, num_layers, 0)
 
 
 
@@ -145,9 +151,23 @@ class PredictModel(nn.Module):
         concatRes = torch.cat((xSlstmRes, xMlstmRes, xLlstmRes), self.input_dim)
         fc1 = self.fc(concatRes[:, -1, :])
 
+
+
+        print('len(xSlstmRes) : ', len(xSlstmRes))
+        print('len(xMlstmRes) : ', len(xMlstmRes))
+        print('len(xLlstmRes) : ', len(xLlstmRes))
+        print('len(concatRes) : ', len(concatRes))
+        print('len(fc1) : ', len(fc1))
+
+
+
+
+        sys.exit()
+
+
+        #predict - AR
         # horisontal - predict?
         for xs in xSinput:
-            ar_input = self.X_ph[-self._hw:]
 
             h0 = torch.zeros(num_layers, xs.size(0), hidden_dim).requires_grad_()
             # Initialize cell state
@@ -200,14 +220,14 @@ for t in range(num_epochs):
     # Don't do this if you want your LSTM to be stateful
     # model.hidden = model.init_hidden()
     # Forward pass
-    y_train_pred = model(x_train)
+    y_train_pred = model(x_train, x_Tm_train, x_Tl_train, hidden_dim, num_layers, output_dim)
 
     loss = loss_fn(y_train_pred, y_train)
     if t % 10 == 0 and t != 0:
         print("Epoch ", t, "MSE: ", loss.item())
     hist[t] = loss.item()
 
-    # Zero out gradient, else they will accumulate between epochs
+    # Zero out gradient, else t hey will accumulate between epchs
     optimiser.zero_grad()
 
     # Backward pass
