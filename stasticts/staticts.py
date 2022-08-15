@@ -16,12 +16,12 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #
 # ''' 통합 데이터 row num, updated로 인덱스 지정하고 시간 순 정렬 '''
-# path = './data/tb_meter_log201901-202201_all_columns_2.csv'
-# df = pd.read_csv(path, parse_dates=['updated'], encoding='utf-8', low_memory=False)
-# df.sort_values(by=['updated'], inplace=True)
-# df.set_index('updated', inplace=True)
-#
-# #cnt,dev_sid,dev_id,meter_id,dev_name,dev_location,power_value,power_value2,meterType,gas_value,water_value,hwater_value,heat_value,updated,magnitudeValue,power_child,parent,ptf_value,pth_value,temp_t1,temp_t2,iptf_value,ipth_value
+# # path = './data/tb_meter_log201901-202201_all_columns_2.csv'
+# # df = pd.read_csv(path, parse_dates=['updated'], encoding='utf-8', low_memory=False)
+# # df.sort_values(by=['updated'], inplace=True)
+# # df.set_index('updated', inplace=True)
+# #
+# # #cnt,dev_sid,dev_id,meter_id,dev_name,dev_location,power_value,power_value2,meterType,gas_value,water_value,hwater_value,heat_value,updated,magnitudeValue,power_child,parent,ptf_value,pth_value,temp_t1,temp_t2,iptf_value,ipth_value
 #
 # scaler = MinMaxScaler()
 # df["power_value"] = scaler.fit_transform(df["power_value"].values.reshape(-1, 1))
@@ -29,32 +29,160 @@ pd.set_option('display.max_rows', None)
 # df2.to_csv('./data/tb_meter_sorted.csv')
 
 
-
-path = './data/tb_meter_sorted.csv'
-
-df = pd.read_csv(path, parse_dates=['updated'], encoding='utf-8', low_memory=False)
-
-df2 = df[['dev_sid', 'dev_name']]
+# path = './data/tb_meter_sorted.csv'
 #
-# print(df2.groupby('dev_id').size())
-# print(df2.groupby(['dev_id','dev_name']).size())
+# df = pd.read_csv(path, parse_dates=['updated'], encoding='utf-8', low_memory=False)
+# df["pw_diff"] = df["power_value"].diff()
+# df2 = df[['updated','dev_id','dev_sid', 'dev_name',"power_value"]]
+# #
+# # print(df2.groupby('dev_id').size())
+# # print(df2.groupby(['dev_id','dev_name']).size())
+#
+# # 가구별 데이터 건수
+# #devNameCnt = df2.groupby(['dev_sid','dev_name']).size()
+#
+# df2.to_csv("./data/df2.csv")
+# sys.exit()
 
-# 가구별 데이터 건수
-devNameCnt = df2.groupby(['dev_sid','dev_name']).size()
 
-print(len(list(set(devNameCnt['dev_name'].tolist()))))
+
+pd.set_option('display.max_columns', None)
+# group 별 sort 후 파일 저장
+path = './data/df2.csv'
+df = pd.read_csv(path, parse_dates=['updated'],encoding='utf-8', low_memory=False)
+
+print(df['dev_name']=='101호'.sort_values(['updated'],ascending=True).head(5))
+
+
+
+
+
+
+
+
+
+
+#print(df.sort_values(['dev_id','dev_sid','updated'],ascending=True).groupby('dev_sid').head(5))
+
+df4 =  pd.DataFrame(df.sort_values(['dev_id','dev_sid','updated'],ascending=True).groupby('dev_sid')[['dev_id','dev_sid','dev_name','power_value']]).reset_index()
+df4.to_csv("./data/groupby.csv")
+sys.exit()
+
+df = df.groupby(by=['dev_sid'], as_index=False)
+print(df.head(10))
+
+sys.exit()
+
+
+
+df3 = df2[['dev_id','dev_name']]
+
+print(df3.groupby(by=['dev_id','dev_name'], as_index=False).size())
+df3Cnt = df3.groupby(by=['dev_id','dev_name'], as_index=False).size()['size'].tolist()
+
+
+print("가구별 데이터 수")
+df4 = pd.DataFrame(df3Cnt)
+
+print("평균 : ",df4.mean())
+print("중위값 : ",df4.median())
+print("최대 : ",df4.max())
+print("최소 : ",df4.min())
+
+
+
+
 
 sys.exit()
 
 
 
 
-print(devNameCnt)
+print(df2.groupby(by=['dev_id'], as_index=False).size(), '\n') #기기별 데이터
+print("기기별 데이터 수 max")
+print(df2.groupby(by=['dev_id'], as_index=False).size().max(), '\n') #기기별 데이터
+print("기기별 데이터 수 min",)
+print(df2.groupby(by=['dev_id'], as_index=False).size().min(), '\n') #기기별 데이터
+#print("기기별 데이터 수 mean")
+df2Cnt = df2.groupby(by=['dev_id'], as_index=False).size()['size'].tolist()
+print("기기별 데이터 수 mean", sum(df2Cnt)/len(df2Cnt)) #기기별 데이터
 
-print(devNameCnt.iloc[:-1].sum()) # 마지막 열만
-print(devNameCnt.iloc[:-1].median()) # 마지막 열만
-print(devNameCnt.iloc[:-1].mean()) # 마지막 열만
-print(devNameCnt.iloc[:-1].max()) # 마지막 열만
+print("기기별 데이터수")
+df4 = pd.DataFrame(df2Cnt)
+
+print("평균 : ",df4.mean())
+print("중위값 : ",df4.median())
+print("최대 : ",df4.max())
+print("최소 : ",df4.min())
+
+
+sys.exit()
+
+
+print(df3.groupby(by=['dev_id'], as_index=False).value_counts()) #기기별 데이터
+print(df3.groupby(by=['dev_id'], as_index=False).value_counts().mean()) #기기별 데이터
+
+
+sys.exit()
+
+
+
+#print(df3.groupby(by=['dev_id'], as_index=False).size())
+
+print("0001")
+print(df3.drop_duplicates(['dev_name'], keep='first')) # 기기별 가구
+print("0002")
+print(df3.drop_duplicates(['dev_name'], keep='first').groupby(by=['dev_id'], as_index=False))
+print("0003")
+print(df3.drop_duplicates(['dev_name'], keep='first').groupby(by=['dev_id'], as_index=False).size())
+print("0004")
+print(df3.drop_duplicates(['dev_name'], keep='first').groupby(by=['dev_id'], as_index=False).size().mean())
+print("0005")
+print(df3.groupby(by=['dev_id'], as_index=False).value_counts().mean()) #기기별 데이터
+print("0006")
+print(df3.groupby(by=['dev_name'], as_index=False).value_counts().mean()) #가구별 데이터
+
+
+print(df3.groupby(by=['dev_id'], as_index=False).value_counts().agg())
+print(df3.groupby(by=['dev_id','dev_name'], as_index=False).value_counts().agg())
+sys.exit()
+
+
+#
+#
+#
+# print(df3.groupby(by=['dev_id'], as_index=False).size()) # 기기당 데이터 수
+# print(df3.groupby(by=['dev_id'], as_index=False)['dev_name'].value_counts().agg())
+# print(df3.groupby(by=['dev_id'], as_index=False).value_counts().agg())
+#
+# sys.exit()
+#
+#
+#
+# print(df3.groupby(by=['dev_id'], as_index=False).size().agg({ "dfsize ": [min, max, sum]}))
+#
+#
+#
+#
+# print('기기별, 가구별 데이터 수')
+# # print(df2.groupby(by=['dev_id'], as_index=False).count())
+# print(df2.groupby(by=['dev_id'], as_index=False).size()) # 기기당 데이터 수
+# print(df2.groupby(by=['dev_id'], as_index=False).size().agg({"": [min, max, sum]}))
+# print(df2.groupby(by=['dev_id'], as_index=False).value_counts())
+# print(df2.groupby(by=['dev_id'], as_index=False).value_counts()).agg()
+# # print(df2.groupby(by=['dev_id','dev_sid'], as_index=False).count())
+# print(df2.groupby(by=['dev_id','dev_sid'], as_index=False).value_counts())
+#
+# df3 = df2[['dev_id','dev_name']]
+# print('df3 기기별 통계')
+# print(df3.groupby(by=['dev_id'], as_index=False).value_counts()).agg()
+# print(df3.groupby(by=['dev_id'], as_index=False).count())
+#
+
+# print(devNameCnt.iloc[:-1].sum()) # 마지막 열만
+# print(devNameCnt.iloc[:-1].median()) # 마지막 열만
+# print(devNameCnt.iloc[:-1].mean()) # 마지막 열만
+# print(devNameCnt.iloc[:-1].max()) # 마지막 열만
 
 
 
