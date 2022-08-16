@@ -8,7 +8,9 @@
 """
 import math
 import tensorflow as tf
-from models.base_model import BaseModel
+import torch.nn as nn
+#from models.base_model import BaseModel
+# from lib.utils import tensordot, get_tf_loss_function
 from lib.utils import tensordot, get_tf_loss_function
 
 #tf_upgrade_v2 --infile APTN.py --outfile reAPTN.py
@@ -25,6 +27,7 @@ class tfAPTN(nn.Module):
         # base setting
         self.float_dtype = tf.float32
         self.activate_func = tf.nn.relu
+
 
         # config setting
         self.T = 144  # long term = 10*144*7 <- 2*12*7시간. long term을 일주일로 함
