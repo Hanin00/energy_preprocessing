@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+
 import sys
 import pandas as pd
 import numpy as np
@@ -5,6 +8,30 @@ import pickle
 import datetime as dt
 import csv
 
+
+
+
+# todo 지금 단일 가구에 대해서 추출해서 하고 있음. 이걸 전체 가구에 사용 하려면 지금 데이터 형태로 추출하는게 필요함
+'''
+    현재 데이터 형태
+    - 하루 단위 데이터 
+    - 10분 단위 데이터로 하루 예측을 해야 하는데 없음
+    
+    전체 데이터 형태
+    - 가구 이름 : 
+    names = ['408호', '810호', '704호', '712호', '311호', '수팰리스8층환경2', '511호', '606호', '802호', '508호', '512호', '307호', '402호', '409호', '312호', '702호', '506호', '808호', '410호', '703호', '509호', '709호', '8층환경1', '604호', '710호', '608호', '405호', '609호', '707호', '603호', '412호', '4층공용', '706호', '804호', '309호', '101호', '203호(고시텔)', '8층환경', '7층공용', '8층공용', '303호', '502호', '5층공용', '302호', '807호', '411호', '711호', '806호', '501호', '705호', '404호', '202호', '301호', '612호', '801호', '3층공용', '505호', '403호', '103호', '406호', '803호', '304호', '605호', '8층환경2', '507호', '601호', '1층공용', '805호', '306호', '607호', '503호', '701호', '102호', '수팰리스8층환경1', '510호', '504호', '611호', '6층공용', '401호', '809호', '2층공용1', '602호', '407호', '708호', '610호', '310호', '308호', '305호', '201호']
+    
+    수행 해야 하는 것
+    - 정규화
+    - 결측치 보간  
+    
+'''
+
+#names로 이름 변경
+names = ['408호', '810호', '704호', '712호', '311호', '수팰리스8층환경2', '511호', '606호', '802호', '508호', '512호', '307호', '402호', '409호', '312호', '702호', '506호', '808호', '410호', '703호', '509호', '709호', '8층환경1', '604호', '710호', '608호', '405호', '609호', '707호', '603호', '412호', '4층공용', '706호', '804호', '309호', '101호', '203호(고시텔)', '8층환경', '7층공용', '8층공용', '303호', '502호', '5층공용', '302호', '807호', '411호', '711호', '806호', '501호', '705호', '404호', '202호', '301호', '612호', '801호', '3층공용', '505호', '403호', '103호', '406호', '803호', '304호', '605호', '8층환경2', '507호', '601호', '1층공용', '805호', '306호', '607호', '503호', '701호', '102호', '수팰리스8층환경1', '510호', '504호', '611호', '6층공용', '401호', '809호', '2층공용1', '602호', '407호', '708호', '610호', '310호', '308호', '305호', '201호']
+
+#todo modulize 1 - pandas filtering 해서 sort, normalize 하는 함수 생성
+#todo modulize 2 - 따흐흑.. 이거 결과값도 normalize 해야 할 듯
 
 
 
@@ -17,44 +44,38 @@ pd.set_option('display.max_columns', None)
     0.0이면 연산시 Nan 이 되니까 지수값 주기
 '''
 
-# # 연간 데이터 합치기
-# pd.set_option('display.max_rows', None)
-# pd.set_option('display.max_columns', None)
-# tPd = pd.read_csv('../data/tb_meter_log_201901.csv', encoding='utf-8', parse_dates=['updated'])
+#tPd = pd.read_csv('../data/tb_meter_log_2019.csv', encoding='utf-8', parse_dates=['updated'])
+#tPd = pd.read_csv('./data/groupby.csv', encoding='utf-8', parse_dates=['updated'])
+tPd = pd.read_csv('./data/df2.csv', encoding='utf-8', parse_dates=['updated'])
+
+
+#print(tPd.head(10))
+
+
+#print(tPd['dev_name'] == '702호') -> F/T
+
+# 호수별 필터링
+name = '702호'
+data = tPd[tPd['dev_name'] == name]
+# 결측치 보간 및 일별 데이터로 추출
 
 
 
+df2 = tPd.loc[tPd['dev_name'] == '702호', :]
 
 
-#
-# csv1 = '../data/tb2019/tb_meter_log_201901.csv'
-# csv2 = '../data/tb2019/tb_meter_log_201902.csv'
-# csv3 = '../data/tb2019/tb_meter_log_201903.csv'
-# csv4 = '../data/tb2019/tb_meter_log_201904.csv'
-# csv5 = '../data/tb2019/tb_meter_log_201905.csv'
-# csv6 = '../data/tb2019/tb_meter_log_201906.csv'
-# csv7 = '../data/tb2019/tb_meter_log_201907.csv'
-# csv8 = '../data/tb2019/tb_meter_log_201908.csv'
-# csv9 = '../data/tb2019/tb_meter_log_201909.csv'
-# csv10 = '../data/tb2019/tb_meter_log_201910.csv'
-# csv11 = '../data/tb2019/tb_meter_log_201911.csv'
-# csv12 = '../data/tb2019/tb_meter_log_201912.csv'
-#
-#
-# print("*** Merging multiple csv files into a single pandas dataframe ***")
 
-# # merge files
-# dataFrame = pd.concat(
-#    map(pd.read_csv, [csv1,csv2,csv3,csv4,csv5,csv6,csv7,csv8,csv9,csv10,csv11,csv12]), ignore_index=True)
-# print(dataFrame.info())
-# print(dataFrame.head(5))
-# print(dataFrame.tail(5))
+#print(df2.head(10))
+sys.exit()
 
-# dataFrame.to_csv('../data/tb_meter_log_2019.csv')
-# sys.exit()
 
-tPd = pd.read_csv('../data/tb_meter_log_2019.csv', encoding='utf-8', parse_dates=['updated'])
+
 print(tPd.info())
+print(tPd.head(10))
+print(list(set(tPd['dev_name'].tolist())))
+
+
+
 sys.exit()
 
 
@@ -76,6 +97,7 @@ grpdf = pd.DataFrame(tPd.groupby('YearMonth')['pw_diff'].sum())
 tPd['month'] = [grpdf.loc[s][0] for s in tPd['YearMonth']]
 
 tPd.to_csv('../data/tb_2019_1M.csv')
+
 
 
 #일 별 데이터에 월 별, 3개월 별 max 값을 갖는 column을 갖는 pd를 xM과 xL로 사용
@@ -169,3 +191,41 @@ sys.exit()
 # with open("./data/mtLogTotal.pickle", "rb") as fr:
 #    totalPd = pickle.load(fr)
 # totalPd.to_csv('./data/mtLogTotal.csv')
+
+
+
+
+
+
+'''
+     연간 데이터 합치기
+'''
+# pd.set_option('display.max_rows', None)
+# pd.set_option('display.max_columns', None)
+# tPd = pd.read_csv('../data/tb_meter_log_201901.csv', encoding='utf-8', parse_dates=['updated'])
+
+# csv1 = '../data/tb2019/tb_meter_log_201901.csv'
+# csv2 = '../data/tb2019/tb_meter_log_201902.csv'
+# csv3 = '../data/tb2019/tb_meter_log_201903.csv'
+# csv4 = '../data/tb2019/tb_meter_log_201904.csv'
+# csv5 = '../data/tb2019/tb_meter_log_201905.csv'
+# csv6 = '../data/tb2019/tb_meter_log_201906.csv'
+# csv7 = '../data/tb2019/tb_meter_log_201907.csv'
+# csv8 = '../data/tb2019/tb_meter_log_201908.csv'
+# csv9 = '../data/tb2019/tb_meter_log_201909.csv'
+# csv10 = '../data/tb2019/tb_meter_log_201910.csv'
+# csv11 = '../data/tb2019/tb_meter_log_201911.csv'
+# csv12 = '../data/tb2019/tb_meter_log_201912.csv'
+#
+#
+# print("*** Merging multiple csv files into a single pandas dataframe ***")
+
+# # merge files
+# dataFrame = pd.concat(
+#    map(pd.read_csv, [csv1,csv2,csv3,csv4,csv5,csv6,csv7,csv8,csv9,csv10,csv11,csv12]), ignore_index=True)
+# print(dataFrame.info())
+# print(dataFrame.head(5))
+# print(dataFrame.tail(5))
+
+# dataFrame.to_csv('../data/tb_meter_log_2019.csv')
+# sys.exit()

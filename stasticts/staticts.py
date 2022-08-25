@@ -51,27 +51,31 @@ pd.set_option('display.max_columns', None)
 path = './data/df2.csv'
 df = pd.read_csv(path, parse_dates=['updated'],encoding='utf-8', low_memory=False)
 
-print(df['dev_name']=='101호'.sort_values(['updated'],ascending=True).head(5))
-
-
-
-
-
-
-
-
+#print(df['dev_name']=='101호'.sort_values(['updated'],ascending=True).head(5))
 
 
 #print(df.sort_values(['dev_id','dev_sid','updated'],ascending=True).groupby('dev_sid').head(5))
 
-df4 =  pd.DataFrame(df.sort_values(['dev_id','dev_sid','updated'],ascending=True).groupby('dev_sid')[['dev_id','dev_sid','dev_name','power_value']]).reset_index()
-df4.to_csv("./data/groupby.csv")
+
+
+
+df2 = df.groupby(by=['dev_sid'], as_index=False)
+
+df2 = df2.loc[df['dev_name'] == '']
+df2.head()
+print(df2.head(10))
+
+
+# df4 =  pd.DataFrame(df.sort_values(['dev_id','dev_sid','updated'],ascending=True).groupby('dev_sid')[['updated','dev_id','dev_sid','dev_name','power_value']]).reset_index()
+#
+# print(df4.head(5))
+#
+# df4.to_csv("./data/groupby.csv")
+
+
+
 sys.exit()
 
-df = df.groupby(by=['dev_sid'], as_index=False)
-print(df.head(10))
-
-sys.exit()
 
 
 
