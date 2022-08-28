@@ -94,7 +94,10 @@ def datasetXsml(df, seq_length ):
     trainDataset = TensorDataset(trainX_tensor, trainY_tensor)
     testDataset = TensorDataset(testX_tensor, testY_tensor)
 
-    return train_set, trainX_tensor, trainY_tensor, testX_tensor, testY_tensor, trainDataset, testDataset
+    train_set = train_set[::-1]
+    test_set = test_set[::-1]
+
+    return train_set,test_set, trainX_tensor, trainY_tensor, testX_tensor, testY_tensor, trainDataset, testDataset
 
 
 # Here we define our model as a class
@@ -198,9 +201,9 @@ resultDf = slicerFreq(df1D, freq, dateColumn)
 
 
 #trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(df10T, 1)
-ARTrainset, trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(resultDf, 1)
-_, trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm = datasetXsml(resultDf, 7)
-_, trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml(resultDf, 28)
+ARTrainset,ARTestset, trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(resultDf, 1)
+_, _, trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm = datasetXsml(resultDf, 7)
+_, _, trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml(resultDf, 28)
 
 # #ARIMA
 #trainXs2_tensor, trainYs2_tensor, testXs2_tensor, testYs2_tensor, trainDatasetXs2, testDatasetXs2 = datasetXsml(df10T, 144)
@@ -244,7 +247,7 @@ class EarlyStopping:
     def is_stop(self):
         return self.patience >= self.patience_limit
 
-#early_stop = EarlyStopping(patience=10)
+early_stop = EarlyStopping(patience=5)
 '''
     Auto Regressive - Arima model
     동일한 데이터(2019-01 ~ 2021-07)을 train 데이터로 사용
@@ -269,9 +272,6 @@ class EarlyStopping:
 #
 # #todo 여기 위에 삭제
 
-print(ARTrainset.head(10))
-ARTrainset = ARTrainset[::-1]
-print(ARTrainset.head(10))
 
 print("arima start " )
 arima_model  = sm.tsa.arima.ARIMA(ARTrainset, order = (2,1,2),freq = 'D',missing = "drop")
@@ -290,7 +290,7 @@ for t in range(num_epochs):
     y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
     y_train = y_train.split(len(y_train_pred), dim=0)[0]
     preds_arima = preds_arima.split(len(y_train_pred), dim=0)[0]
-    y_train_pred += preds_arima
+    #y_train_pred += preds_arima
     y_train_pred = torch.flip(y_train_pred, [0])
 
 
@@ -302,9 +302,9 @@ for t in range(num_epochs):
 
     loss = loss_fn(y_train_pred, y_train)
 #todo early stopping
-    # early_stop.step(loss.item())
-    # if early_stop.is_stop():
-    #     break
+    early_stop.step(loss.item())
+    if early_stop.is_stop():
+        break
 
     if t % 10 == 0 and t != 0:
         print("Epoch ", t, "MSE: ", loss.item())
