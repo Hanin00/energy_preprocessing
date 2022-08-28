@@ -11,6 +11,39 @@ import csv
 
 
 
+# 전체 데이터에서 갱신되지 않는 달들을 제외하고 데이터를 생성
+# 2019-09 ~ 2021-08
+
+
+df1D = pd.read_csv('../data/total_pv.csv', parse_dates=['updated'], encoding='utf-8',)
+df1D.set_index('updated', inplace=True)
+filtered_df=df1D.loc['2019-01-01':'2021-08-31']
+
+filtered_df.to_csv("./data/total_pv_0831.csv")
+sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # todo 지금 단일 가구에 대해서 추출해서 하고 있음. 이걸 전체 가구에 사용 하려면 지금 데이터 형태로 추출하는게 필요함
 '''
     현재 데이터 형태
@@ -49,9 +82,14 @@ pd.set_option('display.max_columns', None)
 tPd = pd.read_csv('./data/df2.csv', encoding='utf-8', parse_dates=['updated'])
 
 
-#print(tPd.head(10))
 
+print(tPd.head(5))
 
+# updated updated 별로 합계를 냄. 그 다음에 결측치 보정을 하면 되는 거 아님? 결측치 보정을 하게 되면 줠라 많기야 하겠지만
+
+# grpDf = pd.DataFrame(tPd.groupby('updated')['power_value'].sum())
+# grpDf.to_csv("./data/total_pv.csv")
+# print(tPd.head(10))
 #print(tPd['dev_name'] == '702호') -> F/T
 
 # 호수별 필터링
@@ -59,11 +97,7 @@ name = '702호'
 data = tPd[tPd['dev_name'] == name]
 # 결측치 보간 및 일별 데이터로 추출
 
-
-
 df2 = tPd.loc[tPd['dev_name'] == '702호', :]
-
-
 
 #print(df2.head(10))
 sys.exit()
@@ -132,11 +166,6 @@ sys.exit()
 # pd1D = tp.resample('1H').last()
 # print(tPd.head(100))
 # pd1D = tp.resample('1D').last() #하루 단위 resampling
-
-
-
-
-
 
 
 

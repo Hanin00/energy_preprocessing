@@ -64,7 +64,15 @@ def datasetXsml(df, seq_length ):
 
     train_size = int(len(df) * dataP)
     train_set = df[0:train_size]
+    trainDf = pd.DataFrame(train_set, columns=["power_value"])
+    trainDf["power_value"] = scaler.fit_transform(trainDf["power_value"].values.reshape(-1, 1))
+    trainDf = trainDf["power_value"]
+    trainDf = trainDf[::-1]
+
     test_set = df[train_size - seq_length:]
+    train_set = df[0:train_size]
+    test_set = df[train_size - seq_length:]
+
 
     trainX, trainY = build_dataset(np.array(train_set), seq_length)
     testX, testY = build_dataset(np.array(test_set), seq_length)
@@ -108,9 +116,6 @@ class LSTMModel(nn.Module):
         xSlstmRes = self.fcToLSTM_layer(xs_input, hidden_dim, num_layers, output_dim, 0)
         xMlstmRes = self.fcToLSTM_layer(xm_input, hidden_dim, num_layers, output_dim, 1) # LSTM은 h0, c0있지만 Fc 결과값은 out 만 있으니까!!!
         xLlstmRes = self.fcToLSTM_layer(xl_input, hidden_dim, num_layers, output_dim, 2)
-
-        #todo 가장 최근 값부터 시작해서, xL만큼 잘라서 concat하고, 그만큼의 날짜 만큼만 사용함.
-        #todo xL만큼의 Y값과 비교해서 LSTM이 역전파 되도록 코딩
 
         lenXl = xLlstmRes.size()[0]
         xSlstmRes = torch.flip(xSlstmRes,[0])  # tensor reverse
@@ -156,9 +161,11 @@ class LSTMModel(nn.Module):
 
 pd.set_option('display.max_columns', None)
 # 데이터 불러오기
-df10T = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding='utf-8', )
-df10T.set_index('updated', inplace=True)
-df1D = pd.read_csv('../data/dailyPred/target102_1D_diff.csv', parse_dates=['updated'], encoding='utf-8', )
+# df10T = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding='utf-8', )
+# df10T.set_index('updated', inplace=True)
+# df1D = pd.read_csv('../data/dailyPred/target102_1D_diff.csv', parse_dates=['updated'], encoding='utf-8', )
+# df1D.set_index('updated', inplace=True)
+df1D = pd.read_csv('../data/total_pv.csv', parse_dates=['updated'], encoding='utf-8', )
 df1D.set_index('updated', inplace=True)
 
 df1D_arima = df1D
@@ -167,7 +174,7 @@ df1D_arima["power_value"] = scaler.fit_transform(df1D_arima["power_value"].value
 df1D_arima = df1D_arima["power_value"]
 df1D_arima = df1D_arima[::-1]
 
-#train_size = int(len(df1D_arima) * 0.7)
+#train_size = int(len(df1D_arima) * 0.7)model
 train_size = int(len(df1D_arima) * dataP)
 train_set_AR = df1D_arima[0:train_size]
 train_set_AR = train_set_AR[::-1]  # arima에 쓸 쑤 있는 데이터로 만들기 위해 reverse
@@ -224,7 +231,6 @@ for t in range(num_epochs):
     y_train_pred += preds_arima
     y_train_pred = torch.flip(y_train_pred, [0])
     #normalize 가 안돼서 이따위로 나오느 ㄴ걸까..?
-
     # scaler = MinMaxScaler()
     # df1D_arima["power_value"] = scaler.fit_transform(df1D_arima["power_value"].values.reshape(-1, 1))
     # df1D_arima = df1D_arima["power_value"]
@@ -248,9 +254,6 @@ plt.plot(y_train_pred.detach().numpy(), label="Preds")
 plt.plot(y_train.detach().numpy(), label="Real")
 plt.legend()
 plt.show()
-
-
-
 
 
 
