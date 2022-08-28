@@ -21,7 +21,6 @@ import tensorflow as tf
 from torch.utils.data import TensorDataset  # 텐서데이터셋
 from torch.utils.data import DataLoader  # 데이터로더
 from statsmodels.tsa.arima_model import ARIMA
-from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
 
 
@@ -35,7 +34,7 @@ import statsmodels.api as sm
 #3-2. 기존 방법에서 Predict 한 방법 확인
 #todo 4-1. 모듈화
 #early stopping 코드 넣어야 함
-#todo train한 모델 저장 및 불러와 test 할 수 있도록 코드 추가
+
 
 #todo predict 값에 normalize 해서 plot으로 비교
 #ARIMA predict reversr 후 lstm 결과값과 concat 하면 됨
@@ -94,7 +93,7 @@ def datasetXsml(df, seq_length ):
     trainDataset = TensorDataset(trainX_tensor, trainY_tensor)
     testDataset = TensorDataset(testX_tensor, testY_tensor)
 
-    return train_set, trainX_tensor, trainY_tensor, testX_tensor, testY_tensor, trainDataset, testDataset
+    return trainX_tensor, trainY_tensor, testX_tensor, testY_tensor, trainDataset, testDataset
 
 
 # Here we define our model as a class
@@ -188,19 +187,48 @@ freq = 'D'
 def slicerFreq(df, freq, dateColumn) :
     df.set_index(dateColumn, inplace=True)
     resultDf = df.resample(freq).last()
-    df_intp_linear = resultDf.interpolate()
-    resultDf["power_value"] = df_intp_linear[["power_value"]]
     return resultDf
 
-resultDf = slicerFreq(df1D, freq, dateColumn)
-# df_intp_linear = resultDf.interpolate()
-# resultDf["power_value"] = df_intp_linear[["power_value"]]
 
+resultDf = slicerFreq(df1D, freq, dateColumn)
+df_intp_linear = resultDf.interpolate()
+resultDf["power_value"] = df_intp_linear[["power_value"]]
+
+
+# print(resultDf[resultDf["power_value"].isnull()])
+# print(resultDf.isnull().sum())
+
+
+
+df1D = resultDf
+df1D_arima = df1D
+#arima는 datasetXsml을 사용하지 않아서 따로 정규화를 해 줬었는데 이렇게 하지 말고
+#todo datasetXml의 결과값을 쓰도록 변경
+scaler = MinMaxScaler()
+df1D_arima["power_value"] = scaler.fit_transform(df1D_arima["power_value"].values.reshape(-1, 1))
+df1D_arima = df1D_arima["power_value"]
+df1D_arima = df1D_arima[::-1]
+
+
+
+#train_size = int(len(df1D_arima) * 0.7)
+train_size = int(len(df1D_arima) * dataP)
+train_set_AR = df1D_arima[0:train_size]
+train_set_AR = train_set_AR[::-1]  # arima에 쓸 쑤 있는 데이터로 만들기 위해 reverse
+#test_set_AR = df1D_arima[train_size - seq_length:]
+
+model  = sm.tsa.arima.ARIMA(train_set_AR, order = (2,1,2),freq = 'D',missing = "drop")
+model_fit = model.fit()
+
+preds_arima = model_fit.predict()
+preds_arima = torch.FloatTensor(preds_arima.tolist())
+preds_arima = torch.flip(preds_arima, [0])
+preds_arima = torch.unsqueeze(preds_arima, 1)
 
 #trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(df10T, 1)
-ARTrainset, trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(resultDf, 1)
-_, trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm = datasetXsml(resultDf, 7)
-_, trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml(resultDf, 28)
+trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(df1D, 1)
+trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm = datasetXsml(df1D, 7)
+trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml(df1D, 28)
 
 # #ARIMA
 #trainXs2_tensor, trainYs2_tensor, testXs2_tensor, testYs2_tensor, trainDatasetXs2, testDatasetXs2 = datasetXsml(df10T, 144)
@@ -245,45 +273,7 @@ class EarlyStopping:
         return self.patience >= self.patience_limit
 
 #early_stop = EarlyStopping(patience=10)
-'''
-    Auto Regressive - Arima model
-    동일한 데이터(2019-01 ~ 2021-07)을 train 데이터로 사용
-'''
 
-
-
-## 10T 단위 데이터 사용하려면 데이터를 따로 받아야 하니까. 근데 이렇게 할 필요가 있는지도 다시 확인 필요
-# df1D = resultDf
-# df1D_arima = df1D
-# #arima는 datasetXsml을 사용하지 않아서 따로 정규화를 해 줬었는데 이렇게 하지 말고
-# scaler = MinMaxScaler()
-# df1D_arima["power_value"] = scaler.fit_transform(df1D_arima["power_value"].values.reshape(-1, 1))
-# df1D_arima = df1D_arima["power_value"]
-# df1D_arima = df1D_arima[::-1]
-#
-# #train_size = int(len(df1D_arima) * 0.7)
-# train_size = int(len(df1D_arima) * dataP)
-# train_set_AR = df1D_arima[0:train_size]
-# train_set_AR = train_set_AR[::-1]  # arima에 쓸 쑤 있는 데이터로 만들기 위해 reverse
-# #test_set_AR = df1D_arima[train_size - seq_length:]
-#
-# #todo 여기 위에 삭제
-
-print(ARTrainset.head(10))
-ARTrainset = ARTrainset[::-1]
-print(ARTrainset.head(10))
-
-print("arima start " )
-arima_model  = sm.tsa.arima.ARIMA(ARTrainset, order = (2,1,2),freq = 'D',missing = "drop")
-model_fit = arima_model.fit()
-
-preds_arima = model_fit.predict()
-preds_arima = torch.FloatTensor(preds_arima.tolist())
-preds_arima = torch.flip(preds_arima, [0])
-preds_arima = torch.unsqueeze(preds_arima, 1)
-
-
-print("LSTM start " )
 for t in range(num_epochs):
     y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
     #todo ARIMA랑 concat 후, Xs의 Y 값과 일치하는지 확인. Y_train_pred 도 그러면 dimension 같아야겠지 ~
