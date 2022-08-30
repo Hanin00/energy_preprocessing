@@ -39,14 +39,16 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 #데이터 불러오기
-df = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
+df = pd.read_csv('../data/total_pv_0831.csv', parse_dates=['updated'], encoding ='utf-8', )
+# df = pd.read_csv('../data/dailyPred/target102_10T_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
 #df = pd.read_csv('../data/target102_3H_diff.csv', parse_dates=['updated'], encoding ='utf-8', )
 df.set_index('updated', inplace=True)
 
 #결측치 있어서 보간 필요(index를 datatime으로 해서 그런지는 모름 이유 파악 X)
 #df_intp_linear = df.interpolate()
 #df['power_value'] = df_intp_linear[['power_value', 'pw_diff']]
-df = df[['power_value', 'pw_diff']]
+#df = df[['power_value', 'pw_diff']]
+df = df[['power_value']]
 
 ## 7일간의 데이터가 입력으로 들어가고 batch size는 임의로 지정
 seq_length = 143  # 하루에 10분 단위로 기록 할 때,  10분 단위 데이터 수는 159469개, 하루 단위 데이터 수는 1108개여서 하루 평균 143개를 기록한다고 가정

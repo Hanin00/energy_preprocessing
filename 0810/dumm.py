@@ -23,7 +23,8 @@ from torch.utils.data import DataLoader  # 데이터로더
 from statsmodels.tsa.arima_model import ARIMA
 import statsmodels.api as sm
 
-
+#https://doheon.github.io/%EC%BD%94%EB%93%9C%EA%B5%AC%ED%98%84/time-series/ci-3.lstm-post/
+#todo model 위에거 써서 해보기
 
 #1-1. LSTM 일단위 + FC, 데이터 형태 확인
     #1-1-1. FC 할 때 weight 를 한 건지..? 걍 결과값 O
@@ -75,6 +76,7 @@ def datasetXsml(df, seq_length ):
 
     test_set = df[train_size - seq_length:]
     train_set = df[0:train_size]
+
     test_set = trainDf[train_size - seq_length:]
 
 
@@ -178,6 +180,18 @@ pd.set_option('display.max_columns', None)
 
 #df1D = pd.read_csv('../data/total_pv.csv', parse_dates=['updated'], encoding='utf-8', )
 df1D = pd.read_csv('../data/total_pv_0831.csv', parse_dates=['updated'], encoding='utf-8', )
+dateColumn = 'updated'
+df1D.set_index(dateColumn, inplace=True)
+resultDf = df1D.resample('D').last()
+
+print(resultDf.loc['2019-01-01' : '2019-01-13'].head(10))
+print(resultDf.loc['2019-01-13' : '2019-01-13'].tail(10))
+
+sys.exit()
+
+
+
+
 # pd1D = tp.resample('1D').last() #하루 단위 resampling
 dateColumn = 'updated'
 freq = 'D'
@@ -299,7 +313,7 @@ for t in range(num_epochs):
     if t % 10 == 0 and t != 0:
         print("Epoch ", t, "MSE: ", loss.item())
     hist[t] = loss.item()
-    # Zero out  "gradient, else t hey will accumulate between epochs
+    # Zero out  "gradient, else they will accumulate between epochs
     optimiser.zero_grad()
     # Backward pass
     loss.backward()
@@ -313,22 +327,49 @@ plt.plot(y_train.detach().numpy(), label="Real")
 plt.legend()
 plt.show()
 
+#np.shape(y_train_pred)
 
-sys.exit()
-
-np.shape(y_train_pred)
 # make predictions
 '''
+Test Dataset 사용
     최근 한달(2021-08)월에 대해 예측
     08월은 Y값으로 주어짐
 '''
 
-y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
-plt.title('graph2')
+y_test_pred = model(testXs_tensor, testXm_tensor, testXl_tensor, hidden_dim, num_layers, output_dim)
+
+print("y_test_pred.size() : ", y_test_pred.size())
+
+
+
+
+arima_test_pred = model_fit.get_prediction(start=pd.to_datetime('2021-08-01'), end = pd.to_datetime('2021-08-31'), )
+y_test_pred += arima_test_pred
+y_train_pred = torch.flip(y_train_pred, [0])
+
+y_test = torch.flip(testYs_tensor, [0])  # tensor reverse
+y_test = y_test.split(len(y_train_pred), dim=0)[0]
+
+
+
+print("testYs_tensor : ",testYs_tensor)
+print("testYs_tensor.shape() : ",testYs_tensor.shape())
+
+sys.exit()
+
+
+
+loss = loss_fn(y_train_pred, y_train)
+print("test loss : ", loss.item())
+
+plt.title('Test')
 plt.plot(y_test_pred.detach().numpy(), label="Preds")
 plt.plot(y_test.detach().numpy(), label="Real")
 plt.legend()
 plt.show()
+
+
+sys.exit()
 
 # invert predictions
 y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
