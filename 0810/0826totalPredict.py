@@ -36,15 +36,29 @@ import statsmodels.api as sm
 #early stopping 코드 넣어야 함
 #train한 모델 저장 및 불러와 test 할 수 있도록 코드 추가
 
-#todo predict 값에 normalize 해서 plot으로 비교
 #ARIMA predict reversr 후 lstm 결과값과 concat 하면 됨
 
-# todo 지금 하루 데이터만 뽑는게 맞는지에 대해서도 봐야함
 # model 저장을 하고 predict를 하는지, 아니면 걍 값만 변경을 하는지, 값을 어떻게 주는지!
 
 
-#dataP = 0.7
-dataP = 1
+
+
+#graph 생성
+def PRPlot(title,pred, real) :
+    plt.title(title)
+    plt.plot(pred, label="Preds", alpha=.7)
+    plt.plot(real, label="Real")
+    plt.legend()
+    plt.show()
+
+# 10T data -> 1D data resampling & 선형 보간
+def slicerFreq(df, freq, dateColumn) :
+    df.set_index(dateColumn, inplace=True)
+    resultDf = df.resample(freq).last()
+    df_intp_linear = resultDf.interpolate()
+    resultDf["power_value"] = df_intp_linear[["power_value"]]
+    return resultDf
+
 
 
 # Sequence에 맞춰 데이터를 생성함.
@@ -61,10 +75,7 @@ def build_dataset(time_series, seq_length):
 
 #testS,E : test data를 나누는 구간
 #train, test set으로 Df를 나눔. normalized를 함(MinMax Scaler)
-#todo read me에 추가
 # data ag -> test Xm, Xl 사이즈가 24, 3개로 너무 적기 때문에 test 데이터의 경우 Xs 길이까지 맞춰서
-
-
 
 #testDate : xL의 크기
 def datasetXsml(resultDf, seq_length, trainS, trainE, testS,testDate ):
@@ -146,20 +157,15 @@ def datasetXsml(resultDf, seq_length, trainS, trainE, testS,testDate ):
     return train_set,test_set, trainX_tensor, trainY_tensor, testX_tensor, testY_tensor, trainDataset, testDataset, train_max_pre_normalize ,train_min_pre_normalize,test_max_pre_normalize, test_min_pre_normalize
 
 # #todo test dataset에 대해 denormalization 해서 값을 구한 후 denormalization 하게 되면 실제 값을 알 수 있음. 이 값을 predDataset에 추가해 다음 날의 데이터를 구해야함
-
-
-
-
 # # todo Predict 값을 추가 해서 갱신하도록 코드 생성
 # # newPV : 하루에 대해 예측 후 해당 값을 denomalize 해서 test Dataset에 추가함.
 # def predDataset(newPV, testDataset ) :
 #     testDataset += newPV
 
 
-
-# Here we define our model as a class
+# Xm, Xl 데이터
 class LSTMModel(nn.Module):
-    def __init__(self, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim):
+    def __init__(self,input_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim):
         super(LSTMModel, self).__init__()
         self.output_dim = output_dim  # 128
         self.dropout_rate_ph = 0.02
@@ -175,7 +181,6 @@ class LSTMModel(nn.Module):
 
         self.lstmXm = nn.LSTM(inputXm_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXl = nn.LSTM(inputXl_dim, hidden_dim, num_layers, batch_first=True)
-        #self.fcToLSTM_layer = fcToLSTM_layer(self, x, hidden_dim, num_layers, whatIs)  # fc - lstm - fc fore
 
 
     def forward(self, xs_input, xm_input, xl_input, hidden_dim, num_layers, output_dim):
@@ -228,67 +233,171 @@ class LSTMModel(nn.Module):
         return out
 
 
+class EarlyStopping:
+    def __init__(self, patience=5):
+        self.loss = np.inf
+        self.patience = 0
+        self.patience_limit = patience
+
+    def step(self, loss):
+        if self.loss > loss:
+            self.loss = loss
+            self.patience = 0
+        else:
+            self.patience += 1
+
+    def is_stop(self):
+        return self.patience >= self.patience_limit
+
+# Xs, Xm, Xl의 seq에 해당하는 Train Dataset 을 생성함 -> 결과값 중 ARIMA에 사용하는 Dataset은 Test 에서도 사용함
+def TrainDatasetCreater(resultDf, seq_length, trainS, trainE ):
+    df = resultDf.copy()
+    scaler = MinMaxScaler()
+    df["power_value"] = scaler.fit_transform(df["power_value"].values.reshape(-1, 1))
+    df = df["power_value"]
+    df = df[::-1]
+    train_max_pre_normalize, train_min_pre_normalize = 0.01,0.01
+
+    if seq_length == 1 :
+
+        train_set = df.loc[trainS:trainE]
+        trainDf = pd.DataFrame(train_set, columns=["power_value"])
+
+        train_max_pre_normalize = max(trainDf["power_value"])
+        train_min_pre_normalize = min(trainDf["power_value"])
+
+        trainDf["power_value"] = scaler.fit_transform(trainDf["power_value"].values.reshape(-1, 1))
+        trainDf = trainDf["power_value"]
+        trainX, trainY = build_dataset(np.array(trainDf), seq_length)
+
+    else :
+        train_set = df.loc[trainS:trainE]
+        trainDf = pd.DataFrame(train_set, columns=["power_value"])
+        trainDf["power_value"] = scaler.fit_transform(trainDf["power_value"].values.reshape(-1, 1))
+        trainDf = trainDf["power_value"]
+        trainX, trainY = build_dataset(np.array(trainDf), seq_length)
+
+    # 텐서로 변환
+    trainX_tensor = torch.FloatTensor(trainX)
+    trainY_tensor = torch.FloatTensor(trainY)
+    # 텐서 형태로 데이터 정의
+    trainDataset = TensorDataset(trainX_tensor, trainY_tensor)
+
+    ARTrainset = train_set[::-1]
+
+    return ARTrainset,trainX_tensor, trainY_tensor, trainDataset, train_max_pre_normalize ,train_min_pre_normalize
+
+
+def Training(num_epochs, resultDf, trainS, trainE,esPatience ) :
+    ARTrainset, trainXs_tensor, trainYs_tensor, trainDatasetXs, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 1, trainS, trainE)
+    _, trainXm_tensor, trainYm_tensor, trainDatasetXm, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 7, trainS, trainE)
+    _, trainXl_tensor, trainYl_tensor, trainDatasetXl, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 28, trainS, trainE)
+
+    input_dim = 1
+    hidden_dim = 144
+    num_layers = 2
+    output_dim = 1
+    inputXm_dim = trainXm_tensor.size()[1]
+    inputXl_dim = trainXl_tensor.size()[1]
+
+    # build model
+    model = LSTMModel(input_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim)
+    loss_fn = torch.nn.MSELoss()
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+
+    # Train model
+    hist = np.zeros(num_epochs)
+
+    early_stop = EarlyStopping(esPatience)
+    '''
+        Auto Regressive - Arima model
+        동일한 데이터(2019-01 ~ 2021-07)을 train 데이터로 사용
+    '''
+    arima_model = sm.tsa.arima.ARIMA(ARTrainset, order=(2, 1, 2), freq='D', missing="drop")
+    arima_model_fit = arima_model.fit()
+    # todo 원상 복구
+    pred = arima_model_fit.get_prediction(start=pd.to_datetime('2019-01-01'), end=pd.to_datetime('2021-07-31'), )
+
+    preds_arima = pred.predicted_mean
+    preds_arima = torch.FloatTensor(preds_arima)
+    preds_arima = torch.flip(preds_arima, [0])
+    preds_arima = torch.unsqueeze(preds_arima, 1)
+
+
+    print("LSTM start ")
+    for t in range(num_epochs):
+        y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
+        # todo ARIMA랑 concat 후, Xs의 Y 값과 일치하는지 확인.
+        # Y_train_pred 도 그러면 dimension 같아야겠지 ~
+        y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
+        y_train = y_train.split(len(y_train_pred), dim=0)[0]
+        preds_arima = preds_arima.split(len(y_train_pred), dim=0)[0]
+        y_train_pred += preds_arima
+        y_train_pred = torch.flip(y_train_pred, [0])
+        loss = loss_fn(y_train_pred, y_train)
+        # early stopping
+        early_stop.step(loss.item())
+        if early_stop.is_stop():
+            break
+        if t % 10 == 0 and t != 0:
+            print("Epoch ", t, "MSE: ", loss.item())
+
+        hist[t] = loss.item()
+        # Zero out  "gradient, else t hey will accumulate between epochs
+        optimiser.zero_grad()
+        # Backward pass
+        loss.backward()
+        # Update parameters
+        optimiser.step()
+
+    # todo model 저장
+    torch.save(model, './model/LSTM_model.pt')
+    torch.save(arima_model_fit, './model/arima_model_fit.pt')
+
+    PRPlot('Train1- origin', y_train_pred.detach().numpy(), y_train)
+    PRPlot('Train1- add loss', y_train_pred.detach().numpy() + loss.item(), y_train)
+
+    return ARTrainset
+
+
+
+
+
+
+
+
 
 pd.set_option('display.max_columns', None)
-# 데이터 불러오기
-#df1D = pd.read_csv('../data/total_pv.csv', parse_dates=['updated'], encoding='utf-8', )
+
+# 데이터 불러오기(10분 단위 데이터)
+
 df1D = pd.read_csv('../data/total_pv_0831.csv', parse_dates=['updated'], encoding='utf-8', )
-# pd1D = tp.resample('1D').last() #하루 단위 resampling
 dateColumn = 'updated'
 freq = 'D'
-
-
-def slicerFreq(df, freq, dateColumn) :
-    df.set_index(dateColumn, inplace=True)
-    resultDf = df.resample(freq).last()
-    df_intp_linear = resultDf.interpolate()
-    resultDf["power_value"] = df_intp_linear[["power_value"]]
-    return resultDf
 
 resultDf = slicerFreq(df1D, freq, dateColumn) #일 단위 데이터로 변환 및 결측치 선형 보간
 
 
+
 trainS = '2019-01-01'
 trainE = '2021-07-31'
-testS = '2021-08-01'
-testDate =  pd.Timedelta(28, unit='days')
-#testDate =  28
+esPatience = 20
+num_epochs = 20
 
+ARTrainset = Training(num_epochs, resultDf, trainS, trainE,esPatience)
 
-ARTrainset, Testset, trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs, train_max_pre_normalize ,train_min_pre_normalize,test_max_pre_normalize, test_min_pre_normalize = datasetXsml(resultDf, 1,  trainS, trainE, testS ,testDate)
-_, _, trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm,_,_,_,_ = datasetXsml(resultDf, 7, trainS, trainE, testS,testDate )
-_, _, trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl,_,_,_,_ = datasetXsml(resultDf, 28, trainS, trainE, testS,testDate )
+ARTrainset,trainXs_tensor, trainYs_tensor, trainDatasetXs, train_max_pre_normalize ,train_min_pre_normalize = TrainDatasetCreater(resultDf, 1, trainS, trainE )
+_,trainXm_tensor,    trainYm_tensor, trainDatasetXm, train_max_pre_normalize ,train_min_pre_normalize = TrainDatasetCreater(resultDf, 7, trainS, trainE )
+_,trainXl_tensor,   trainYl_tensor, trainDatasetXl, train_max_pre_normalize ,train_min_pre_normalize = TrainDatasetCreater(resultDf, 28, trainS, trainE )
+
 
 # print(train_max_pre_normalize)
 # print(train_min_pre_normalize)
 
 
-def denormalize(y,max_pre_normalize ,min_pre_normalize ):
-    final_value = y*(max_pre_normalize - min_pre_normalize) + min_pre_normalize
-    return final_value
-
-
-# todo read me update -> first test Dataset
-'''
-    beforeDf : 예측 시점 이전의 데이터
-    lenXl, lenXm :  
-'''
-def testDataTrimming(beforeDf, lenXm,lenXl) :
-
-    testXm,_ = build_dataset(np.array(beforeDf[::-1]), lenXm)
-    testXl,_= build_dataset(np.array(beforeDf[::-1]), lenXl)
-
-    testXm = testXm[:lenXl] # 제일 긴 길이인 lenXl에 맞춰서 데이터를 잘라즘. 이 데이터는 현재 최신 데이터부터 예전 데이터 순서로 졍렬되어 있음
-    testXl = testXl[:lenXl]
-
-    testXm = torch.FloatTensor(np.array(testXm[::-1]))
-    testXl = torch.FloatTensor(np.array(testXl[::-1]))
-
-    return testXm, testXl
-
-testXm_tensor, testXl_tensor = testDataTrimming(ARTrainset, 7, 28)
-
 # Build model
+
+
 input_dim = 1
 hidden_dim = 144
 num_layers = 2
@@ -307,63 +416,25 @@ num_epochs = 20
 hist = np.zeros(num_epochs)
 
 
-class EarlyStopping:
-    def __init__(self, patience=5):
-        self.loss = np.inf
-        self.patience = 0
-        self.patience_limit = patience
-
-    def step(self, loss):
-        if self.loss > loss:
-            self.loss = loss
-            self.patience = 0
-        else:
-            self.patience += 1
-
-    def is_stop(self):
-        return self.patience >= self.patience_limit
-
 #early_stop = EarlyStopping(patience=30)
 '''
     Auto Regressive - Arima model
     동일한 데이터(2019-01 ~ 2021-07)을 train 데이터로 사용
 '''
 arima_model  = sm.tsa.arima.ARIMA(ARTrainset, order = (2,1,2),freq = 'D',missing = "drop")
-model_fit = arima_model.fit()
+arima_model_fit = arima_model.fit()
 #todo 원상 복구
-pred = model_fit.get_prediction(start=pd.to_datetime('2019-01-01'), end = pd.to_datetime('2021-07-31'), )
-#preds_arima = model_fit.predict()
-
+pred = arima_model_fit.get_prediction(start=pd.to_datetime('2019-01-01'), end = pd.to_datetime('2021-07-31'), )
 
 preds_arima = pred.predicted_mean
-#preds_arima = torch.FloatTensor(preds_arima.tolist())
 preds_arima = torch.FloatTensor(preds_arima)
 preds_arima = torch.flip(preds_arima, [0])
 preds_arima = torch.unsqueeze(preds_arima, 1)
-
-
-# # #todo 최근 한 달에 대한 arima 예측
-#pred = model_fit.get_prediction(start=pd.to_datetime('2021-08-01'), end = pd.to_datetime('2021-08-31'), )
-#
-# pred_ci = pred.conf_int()
-# ## Plot in-sample-prediction
-# ax = ARTrainset['2019':].plot(label='Observed')
-# pred.predicted_mean.plot(ax=ax, label="one-step Ahead Prediction", alpha = .5, )
-#
-# ax.set_xlabel('Date')
-# ax.set_ylabel('PowerValue')
-# plt.legend(loc = 'upper left')
-# plt.show()
-#
-# sys.exit()
-
 
 print("LSTM start " )
 for t in range(num_epochs):
     y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
     #todo ARIMA랑 concat 후, Xs의 Y 값과 일치하는지 확인.
-    #
-    #
     # Y_train_pred 도 그러면 dimension 같아야겠지 ~
     y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
     y_train = y_train.split(len(y_train_pred), dim=0)[0]
@@ -386,52 +457,9 @@ for t in range(num_epochs):
     # Update parameters
     optimiser.step()
 
-#todo pred 값을 normalize 해서 graph에 그려보기
-
-
-
-# 일단  y_train 값에서 마지막 값을 얻을 수 있는지 확인 하고, 만약 맞으면,  pred 값을 추가
-
-predLast = y_train.detach().numpy()[-2] #train Dataset의 normalize 된 마지막 값
-predLast -= 0.000001 # float이라 정확한 값 비교가 어려워서 부등호를 이용함. 이때 사용하기 위해 값을 임의로 줄임
-
-#초기의 dataset은 trainset을 기반으로 만들어 짐
-
-test_max_pre_normalize = max(ARTrainset)
-test_min_pre_normalize = min(ARTrainset)
-
-trainset = pd.DataFrame(ARTrainset, columns=["power_value"])
-scaler = MinMaxScaler()
-trainset["power_value"] = scaler.fit_transform(trainset["power_value"].values.reshape(-1, 1))
-print(trainset.tail(10))
-
-testFirDenorm = denormalize(predLast,test_max_pre_normalize, test_min_pre_normalize) #denormalize 된 원래 의 값
-
-print("predLast : ",predLast)
-print("testFirDenorm : ",testFirDenorm) # -> new Power_value
-
-
-#todo data는 두 번 normalize 됨. 전체 데이터에 한 번, train과 test 에 한 번. 근데 지금 생각해 보니 굳이 전체 데이터에 대해 할 필요가 있나 싶음. 추후 개선
-trainFirDenorm = denormalize(predLast,train_max_pre_normalize, train_min_pre_normalize) #denormalize 된 원래 의 값
-print("trainFirDenorm : ",  trainFirDenorm )
-
-origin_max_pre_normalize = max(resultDf["power_value"])
-origin_min_pre_normalize = min(resultDf["power_value"])
-
-totalDenorm = denormalize(trainFirDenorm, origin_max_pre_normalize, origin_min_pre_normalize) # 마지막 날짜에 대한 예측
-
-print("totalDenorm : ",totalDenorm)
-print("total date list : ",  list(resultDf.index[resultDf["power_value"] >= (totalDenorm+0.000001)]))
-print("total date : ",  list(resultDf.index[resultDf["power_value"] >= (totalDenorm + 0.000001)])[0])
-
-
 #todo model 저장
-torch.save(model, './model/model.pt')
-torch.save(model_fit, './model/arima_model_fit.pt')
-
-
-
-
+torch.save(model, './model/LSTM_model.pt')
+torch.save(arima_model_fit, './model/arima_model_fit.pt')
 
 ## Train Fitting
 plt.title('Train1 - origin')
@@ -452,17 +480,69 @@ plt.show()
 
 
 
-#np.shape(y_train_pred)
+
+#Predict
+def denormalize(y,max_pre_normalize ,min_pre_normalize ):
+    final_value = y*(max_pre_normalize - min_pre_normalize) + min_pre_normalize
+    return final_value
+
+# todo read me update -> first test Dataset
+'''
+    beforeDf : 예측 시점 이전의 데이터
+    lenXl, lenXm :  
+'''
+def testDataTrimming(beforeDf, lenXm,lenXl) :
+    testYs = np.array(beforeDf[::-1]) # 큰 값부터(최근 값 부터)
+    testYs = testYs[:lenXl]
+    testXs = torch.FloatTensor(testYs[1:lenXl+2])
+
+    testXm,_ = build_dataset(np.array(beforeDf[:: -1]), lenXm)
+    testXl,_= build_dataset(np.array(beforeDf[::-1]), lenXl)
+
+    testXm = testXm[:lenXl] # 제일 긴 길이인 lenXl에 맞춰서 데이터를 잘라즘. 이 데이터는 현재 최신 데이터부터 예전 데이터 순서로 졍렬되어 있음
+    testXl = testXl[:lenXl]
+
+    testXs = torch.FloatTensor(np.array(testXs[::-1]))
+    testYs = torch.FloatTensor(np.array(testYs[::-1]))
+    testXm = torch.FloatTensor(np.array(testXm[::-1]))
+    testXl = torch.FloatTensor(np.array(testXl[::-1]))
+
+
+    testXs = torch.flip(testXs, [-1])
+    testXs = testXs.unsqueeze(-1)
+    testYs = torch.flip(testYs, [-1])
+    testXm = torch.flip(testXm, [-1])
+    testXl = torch.flip(testXl, [-1])
+
+    return testYs, testXs, testXm, testXl
+
+
+lenXm = 7
+lenXl = 28
+testYs, testXs,  testXm, testXl = testDataTrimming(ARTrainset, lenXm, lenXl)
+
+print("size")
+print(testYs.size())
+print(testXs.size())
+print(testXm.size())
+print(testXl.size())
+sys.exit()
+
+
+
+
+
+
+testS = '2021-08-01'
+testDate =  pd.Timedelta(28, unit='days')
+startD = str(pd.Timestamp(testS) - testDate)  # 2021-07-04 00:00:00
+#testDate =  28
+
 # make predictions
 '''
     최근 한달(2021-08)월에 대해 예측
     08월은 Y값으로 주어짐
 '''
-#todo model 불러오기
-#model = torch.load('./model/model.pt')
-model_fit = torch.load('./model/arima_model_fit.pt')
-
-
 '''
     originTSetDf : Origin Test Set, Dataframe
     datalen : XL의 데이터 개수    
@@ -471,103 +551,105 @@ model_fit = torch.load('./model/arima_model_fit.pt')
 def appendNewData(originTSetDt, dataLen, newPv) :
     td_pd = pd.Timedelta(1, unit='days')
     nextIdx = pd.Timestamp(pd.Timestamp(pd.to_datetime(originTSetDt.index[-1].date()) + td_pd).date())
-    originTSetDt.loc[str(nextIdx)] = [newPv]
+    originTSetDt.loc[str(nextIdx)] = newPv
     testXDf = originTSetDt[::-1]
     testXDf = testXDf[:dataLen]
     return testXDf
+'''
+    1. 학습된 모델을 불러옴
+    2. 하루 예측 후 새로운 데이터로 갱신함
+    3. 1,2 번을 30번 반복
+'''
 
-# newPv = y_test_pred의 Denormaliza 값
-# resultDf = appendNewData(resultDf, 28, newPv)
+def PRPlot(title,pred, real) :
+    plt.title(title)
+    plt.plot(pred+ loss.item(), label="Preds", alpha=.7)
+    plt.plot(real, label="Real")
+    plt.legend()
+    plt.show()
 
-testXs_tensor = torch.squeeze(testXs_tensor,2)
-y_test_pred = model(testXs_tensor, testXm_tensor, testXl_tensor, hidden_dim, num_layers, output_dim)
+#일단 하루 예측 먼저 -> 30번 반복
+def DailyPredict(lstmPth, arimaPth,predS, predE,testXs_tensor, testXm_tensor, testXl_tensor, hidden_dim, num_layers, output_dim, resultDf ) :
+    model = torch.load(lstmPth)
+    arima_model_fit = torch.load(arimaPth)
 
-y_test = torch.flip(testYs_tensor, [0])  # tensor reverse
-y_test = y_test.split(len(y_test_pred), dim=0)[0]
+    testXs_tensor = torch.squeeze(testXs_tensor,1)
+
+    y_test_pred = model(testXs_tensor, testXm_tensor, testXl_tensor, hidden_dim, num_layers, output_dim)
+
+    y_test = torch.flip(testYs_tensor, [0])  # tensor reverse
+    y_test = y_test.split(len(y_test_pred), dim=0)[0]
+
+    # todo 최근 한 달에 대한 arima 예측
+    arima_test_pred = arima_model_fit.get_prediction(start=pd.to_datetime(predS), end=pd.to_datetime(predE), )
+    arima_test_pred = arima_test_pred.predicted_mean  # : 31
+    arima_test_pred = torch.FloatTensor(arima_test_pred)
+    arima_test_pred = torch.flip(arima_test_pred, [0])
+    arima_test_pred = torch.unsqueeze(arima_test_pred, 1)
+    arima_test_pred = arima_test_pred.split(len(y_test_pred), dim=0)[0]
+
+    y_test_pred += arima_test_pred
+    # y_test_pred = torch.flip(y_test_pred, [0])
+
+    loss = loss_fn(y_test_pred, y_test)
+
+    # todo predict 값
+    predLast = y_test_pred.detach().numpy()[-1]  # train Dataset의 normalize 된 마지막 값
+    predLast -= 0.000001  # float이라 정확한 값 비교가 어려워서 부등호를 이용함. 이때 사용하기 위해 값을 임의로 줄임
+    testset = pd.DataFrame(Testset, columns=["power_value"])
+    testFirDenorm = denormalize(predLast, test_max_pre_normalize, test_min_pre_normalize)  # denormalize 된 원래 의 값
+
+    origin_max_pre_normalize = max(resultDf["power_value"])
+    origin_min_pre_normalize = min(resultDf["power_value"])
+    testDenorm = float(denormalize(testFirDenorm, origin_max_pre_normalize, origin_min_pre_normalize))  # 마지막 날짜에 대한 예측
+    # testDenorm = 새로 예측한 수요량
+
+    exdf = resultDf[trainS: trainE]
+    newPv = testDenorm
+    newDf = appendNewData(exdf, 28, newPv)
+
+    PRPlot('Test1- origin', y_test_pred.detach().numpy(), y_test)
+    PRPlot('Test1- add loss', y_test_pred.detach().numpy() + loss.item(), y_test)
+
+    return newDf
+
+#Daily Predict
+arimaPth ='./model/arima_model_fit.pt'
+lstmPth ='./model/model.pt'
+
+predS = '2021-07-04'
+predE = '2021-08-01'
+
+# resultDf - 일단위로 resample된 df(전체 데이터)
+
+newDf = DailyPredict(lstmPth, arimaPth,predS, predE,testXs, testXm, testXl, hidden_dim, num_layers, output_dim, resultDf  )
+print(newDf.head())
 
 
-#todo 최근 한 달에 대한 arima 예측
-arima_test_pred = model_fit.get_prediction(start=pd.to_datetime('2021-07-04'), end = pd.to_datetime('2021-08-01'), )
-arima_test_pred = arima_test_pred.predicted_mean # : 31
-arima_test_pred = torch.FloatTensor(arima_test_pred)
-arima_test_pred = torch.flip(arima_test_pred, [0])
-arima_test_pred = torch.unsqueeze(arima_test_pred, 1)
-arima_test_pred = arima_test_pred.split(len(y_test_pred), dim=0)[0]
-
-
-print(len(y_test_pred))
-print(len(arima_test_pred))
-
-
-y_test_pred += arima_test_pred
-y_test_pred = torch.flip(y_test_pred, [0])
-
-loss = loss_fn(y_test_pred, y_test)
-print("test loss : ", loss.item())
-
-
-# #일단 Y_test 값을 잘 denormalize 하는지 확인 후 예측값을  denormalize 하기
-# #todo 예측값과 실제 값의 오차를 반영해 denormalrize 후 해당 값을 test data에 추가하면 더 나은 성능을 보일 수 있다고 기대됨
-# predLast = y_test.detach().numpy()[-2] #train Dataset의 normalize 된 마지막 값
-# predLast -= 0.000001 # float이라 정확한 값 비교가 어려워서 부등호를 이용함. 이때 사용하기 위해 값을 임의로 줄임
-# testset = pd.DataFrame(ARTrainset, columns=["power_value"])
-#
-# #print("index : ",  list(ARTrainset.index[ARTrainset["power_value"] >= denorm])[0]) #제일 미래에 대한 예측값의 날짜
-# print("predLast : ",predLast)
-
-#todo 예측값을 denormalize 해서 예측값에 얹음
-predLast = y_test_pred.detach().numpy()[-1] #train Dataset의 normalize 된 마지막 값
-predLast -= 0.000001 # float이라 정확한 값 비교가 어려워서 부등호를 이용함. 이때 사용하기 위해 값을 임의로 줄임
-testset = pd.DataFrame(Testset, columns=["power_value"])
-testFirDenorm = denormalize(predLast,test_max_pre_normalize, test_min_pre_normalize) #denormalize 된 원래 의 값
-print("trainFirDenorm : ",  float(testFirDenorm) )
-
-testDenorm = float(denormalize(testFirDenorm, origin_max_pre_normalize, origin_min_pre_normalize)) # 마지막 날짜에 대한 예측
-print("testDenorm : ", testDenorm)
-#todo testDenorm = 새로 예측한 수요량
-
-
-plt.title('Test1- origin')
-plt.plot(y_test_pred.detach().numpy(), label="Preds")
-plt.plot(y_test.detach().numpy(), label="Real")
-plt.legend()
-plt.show()
-
-
-plt.title('Test2- loss')
-plt.plot(y_test_pred.detach().numpy()+loss.item(), label="Preds", alpha = .7)
-plt.plot(y_test.detach().numpy(), label="Real")
-plt.legend()
-plt.show()
-
-exdf = resultDf[trainS : trainE]
-print("exdf")
-print(exdf.tail(10))
-newPv = testDenorm
-newDf = appendNewData(exdf, 28, newPv)
-print("newdf")
-print(newDf.tail(10))
-print(newDf.head(10))
 sys.exit()
 
 
-
-
-
-
-plt.title('graph4')
-plt.plot(preds, label="Preds")
-plt.plot(y_test, label="Data")
-# plt.plot(y_test.detach().numpy(), label="Data")
-plt.legend()
-plt.show()
+predS = '2021-08-01'
+def MonthlyPred(predS, testDate) :
+    testDate = pd.Timedelta(testDate, unit='days')
+    test
 
 
 
 
 
+for i in range(30) :
+    # Daily Predict
+    arimaPth = './model/arima_model_fit.pt'
+    lstmPth = './model/model.pt'
 
+    print(testXs_tensor)
+    print(type(testXs_tensor))
+    sys.exit()
 
+    # resultDf - 일단위로 resample된 df(전체 데이터)
+    newDf = DailyPredict(lstmPth, arimaPth, predS, predE, testXs_tesnsor, testXm_tensor, testXl_tensor, hidden_dim,
+                         num_layers, output_dim, resultDf)
 
 
 

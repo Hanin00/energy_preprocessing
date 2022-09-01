@@ -84,8 +84,29 @@ print("index : ",  list(resultDf.index[resultDf["power_value"] >= predDenorm])[0
 
 
 
-
-
+'''
+    denormalize 예제
+'''
+# 
+# # 일단  y_train 값에서 마지막 값을 얻을 수 있는지 확인 하고, 만약 맞으면,  pred 값을 추가
+# # normalized 값이 아닌 원래 powervalue로 denormalize 함.
+# predLast = y_train.detach().numpy()[-2] #train Dataset의 normalize 된 마지막 값
+# predLast -= 0.000001 # float이라 정확한 값 비교가 어려워서 부등호를 이용함. 이때 사용하기 위해 값을 임의로 줄임
+# 
+# #초기의 dataset은 trainset을 기반으로 만들어 짐
+# 
+# test_max_pre_normalize = max(ARTrainset)
+# test_min_pre_normalize = min(ARTrainset)
+# 
+# trainset = pd.DataFrame(ARTrainset, columns=["power_value"])
+# scaler = MinMaxScaler()
+# trainset["power_value"] = scaler.fit_transform(trainset["power_value"].values.reshape(-1, 1))
+# testFirDenorm = denormalize(predLast,test_max_pre_normalize, test_min_pre_normalize) #denormalize 된 원래 의 값
+# trainFirDenorm = denormalize(predLast,train_max_pre_normalize, train_min_pre_normalize) #denormalize 된 원래 의 값
+# origin_max_pre_normalize = max(resultDf["power_value"])
+# origin_min_pre_normalize = min(resultDf["power_value"])
+# totalDenorm = denormalize(trainFirDenorm, origin_max_pre_normalize, origin_min_pre_normalize) # 마지막 날짜에 대한 예측
+# 
 
 
 
