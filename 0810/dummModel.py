@@ -254,6 +254,9 @@ _, _, trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDataset
 _, _, trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml2(resultDf, 28, trainS, trainE, testS )
 
 
+
+
+
 # todo read me update -> test Dataset
 def testDataTrimming(testXs_tensor, testXm_tensor, testXl_tensor) :
     tXslen = len(testXs_tensor)

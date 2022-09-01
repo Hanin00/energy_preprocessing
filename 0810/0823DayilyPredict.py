@@ -183,17 +183,15 @@ train_set_AR = train_set_AR[::-1]  # arima에 쓸 쑤 있는 데이터로 만들
 model  = sm.tsa.arima.ARIMA(train_set_AR, order = (2,1,2),freq = 'D',missing = "drop")
 model_fit = model.fit()
 
-#print("ARIMA model_fit.summary() : ")
-#print(model_fit.summary())
 
 preds_arima = model_fit.predict()
 preds_arima = torch.FloatTensor(preds_arima.tolist())
 preds_arima = torch.flip(preds_arima, [0])
 preds_arima = torch.unsqueeze(preds_arima, 1)
 
-#trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(df10T, 1)
+
 trainXs_tensor, trainYs_tensor, testXs_tensor, testYs_tensor, trainDatasetXs, testDatasetXs = datasetXsml(df1D, 1)
-trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDatasetXm, testDatasetXm = datasetXsml(df1D, 7)
+trainXm_tensor, trainYm_tensor, testXm_tensor, testYm_tensor, trainDataswetXm, testDatasetXm = datasetXsml(df1D, 7)
 trainXl_tensor, trainYl_tensor, testXl_tensor, testYl_tensor, trainDatasetXl, testDatasetXl = datasetXsml(df1D, 28)
 
 # #ARIMA
