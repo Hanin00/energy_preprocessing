@@ -112,9 +112,9 @@ class LSTM(nn.Module):
 
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
-        self.lstmXs = nn.LSTM(input_dimXs, hidden_dim, num_layers, batch_first=True)
+        self.lstmXs = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-        self.lstmXl = nn.LSTM(input_dimXl, hidden_dim, num_layers, batch_first=True)
+        self.lstmXl = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         # Readout layer
         self.fcXs = nn.Linear(hidden_dim, output_dim)
         self.fcXm = nn.Linear(hidden_dim, output_dim)
@@ -124,8 +124,8 @@ class LSTM(nn.Module):
         # Initialize hidden state with zeros
         hm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
         cm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
-        outXm, _ = self.lstmXm(xm)
-        # outXm, (hn, cn) = self.lstmXm(xm, (hm0.detach(), cm0.detach()))
+        # outXm, _ = self.lstmXm(xm)
+        outXm, (hn, cn) = self.lstmXm(xm, (hm0.detach(), cm0.detach()))
 
         # Index hidden state of last time step
         # out.size() --> 100, 32, 100
@@ -186,7 +186,7 @@ plt.show()
 
 np.shape(ym_train_pred)
 # make predictions
-ym_test_pred = model(xm_test)
+ym_test_pred = model(xs_test, xm_test, xl_test)
 plt.title('graph2')
 plt.plot(ym_test_pred.detach().numpy(), label="Preds")
 plt.plot(ym_test.detach().numpy(), label="Real")

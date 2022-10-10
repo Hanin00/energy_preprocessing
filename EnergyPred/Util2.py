@@ -46,7 +46,7 @@ class LSTMModel(nn.Module):
 
         # self.lstmXs = LSTM(inputXs_dim, hiddenXs_dim, numlayers, batch_first=True)
         # self.lstmXs = LSTM(inputXs_dim, hiddenXs_dim, numlayers, batch_first=True)
-        self.lstmXs = nn.LSTM(inputXs_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstmXs = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         # self.lstmXm = nn.LSTM(inputXm_dim, hidden_dim, num_layers, batch_first=True)
         # self.lstmXl = nn.LSTM(inputXl_dim, hidden_dim, num_layers, batch_first=True)
 
@@ -56,8 +56,8 @@ class LSTMModel(nn.Module):
         c0Xs = torch.zeros(self.num_layers, xs_input.size(0), self.hidden_dim).requires_grad_()  # 2, 942, 128
 
         # out, _ = self.lstmXs(x)
-        xSlstmRes, (hn, cn) = self.lstmXs(xs_input)
-        # xSlstmRes, (hn, cn) = self.lstmXs(xs_input, (h0Xs.detach(), c0Xs.detach()))
+        # xSlstmRes, (hn, cn) = self.lstmXs(xs_input)
+        xSlstmRes, (hn, cn) = self.lstmXs(xs_input, (h0Xs.detach(), c0Xs.detach()))
         xSlstmRes = self.fcXs(xSlstmRes[:, :])
 
         fc1 = xSlstmRes
