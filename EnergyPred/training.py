@@ -38,7 +38,7 @@ resultDf = ut.slicerFreq(df1D, freq, dateColumn) #일 단위 데이터로 변환
 trainS = '2019-01-01'
 trainE = '2021-07-31'
 esPatience = 25
-num_epochs = 2000
+num_epochs = 200
 
 ARTrainset,y_train_pred ,y_train , loss = ut.Training(num_epochs, resultDf, trainS, trainE,esPatience)
 ut.PRPlot('Training', y_train_pred.detach().numpy(), y_train)

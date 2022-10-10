@@ -23,11 +23,12 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
 
 
+
 class LSTMModel(nn.Module):
-    def __init__(self,input_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim):
+    def __init__(self,input_dim, inputXs_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim):
         super(LSTMModel, self).__init__()
         self.output_dim = output_dim  # 128
-        self.dropout_rate_ph = 0.02
+        #self.dropout_rate_ph = 0.02
 
         # base
         self.input_dim = input_dim  # <-shape=(None, 12, 128)
@@ -35,8 +36,12 @@ class LSTMModel(nn.Module):
         self.hidden_dim = hidden_dim  # 128
 
         # layer
-        self.activate_func = tf.nn.relu
+        #self.activate_func = tf.nn.relu
 
+        self.fc = nn.Linear(hidden_dim, output_dim)
+
+        # self.lstmXs = LSTM(inputXs_dim, hiddenXs_dim, numlayers, batch_first=True)
+        self.lstmXs = nn.LSTM(inputXs_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXm = nn.LSTM(inputXm_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXl = nn.LSTM(inputXl_dim, hidden_dim, num_layers, batch_first=True)
 
@@ -61,8 +66,17 @@ class LSTMModel(nn.Module):
 
     def fcToLSTM_layer(self, x, hidden_dim, num_layers, output_dim, whatIs):
         if whatIs == 0:  # short term data
-            fc = nn.Linear(x.size()[1], output_dim)
-            out = fc(x[:, :])
+            fc = nn.Linear(hidden_dim, output_dim)
+
+            h0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_() #2, 942, 128
+            c0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_() # 2, 942, 128
+
+            out, _ = self.lstmXs(x)
+            # out, (hn, cn) = self.lstmXs(x, (h0.detach(), c0.detach()))
+
+            out = fc(out[:, :])
+            # fc = nn.Linear(x.size()[1], output_dim)
+            # out = fc(x[:, :])
 
         else:  # long term data
             if whatIs == 1 :
@@ -72,12 +86,18 @@ class LSTMModel(nn.Module):
                 c0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
 
                 out, _ = self.lstmXm(x)
+                # out, (hn, cn) = self.lstmXm(x, (h0.detach(), c0.detach()))
 
                 out = fc(out[:, :])
 
             else :
                 fc = nn.Linear(hidden_dim, output_dim)
+
+                h0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
+                c0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
+
                 out, _ = self.lstmXl(x)
+                # out, (hn, cn) = self.lstmXl(x, (h0.detach(), c0.detach()))
                 out = fc(out[:, :])
 
         return out
@@ -173,14 +193,17 @@ def Training(num_epochs, resultDf, trainS, trainE,esPatience ) :
     _, trainXl_tensor, trainYl_tensor, trainDatasetXl, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 28, trainS, trainE)
 
     input_dim = 1
-    hidden_dim = 144
+    hidden_dim = 128
+    # hidden_dim = 144
     num_layers = 2
     output_dim = 1
+
+    inputXs_dim = trainXs_tensor.size()[1]
     inputXm_dim = trainXm_tensor.size()[1]
     inputXl_dim = trainXl_tensor.size()[1]
 
     # build model
-    model = LSTMModel(input_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim)
+    model = LSTMModel(input_dim, inputXs_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim)
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
