@@ -158,7 +158,6 @@ def TrainDatasetCreater(resultDf, seq_length, trainS, trainE ):
     train_max_pre_normalize, train_min_pre_normalize = 0.01,0.01
 
     if seq_length == 1 :
-
         train_set = df.loc[trainS:trainE]
         trainDf = pd.DataFrame(train_set, columns=["power_value"])
 
@@ -222,11 +221,12 @@ def Training(num_epochs, resultDf, trainS, trainE,esPatience ) :
     print("LSTM start ")
     for t in range(num_epochs):
         y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
-        y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
-        y_train = y_train.split(len(y_train_pred), dim=0)[0]
-        preds_arima = preds_arima.split(len(y_train_pred), dim=0)[0]
-        y_train_pred += preds_arima
-        y_train_pred = torch.flip(y_train_pred, [0])
+        # y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
+        # y_train = y_train.split(len(y_train_pred), dim=0)[0]
+        y_train = trainYs_tensor.split(len(y_train_pred), dim=0)[0]
+        # preds_arima = preds_arima.split(len(y_train_pred), dim=0)[0]
+        # y_train_pred += preds_arima
+        # y_train_pred = torch.flip(y_train_pred, [0])
         loss = loss_fn(y_train_pred, y_train)
 
         # early stopping

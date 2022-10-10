@@ -21,6 +21,7 @@ from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
 import Util as ut
+import Util2 as ut2
 import pickle
 
 
@@ -38,9 +39,10 @@ resultDf = ut.slicerFreq(df1D, freq, dateColumn) #일 단위 데이터로 변환
 trainS = '2019-01-01'
 trainE = '2021-07-31'
 esPatience = 25
-num_epochs = 200
+num_epochs = 2000
 
 ARTrainset,y_train_pred ,y_train , loss = ut.Training(num_epochs, resultDf, trainS, trainE,esPatience)
+# ARTrainset,y_train_pred ,y_train , loss = ut2.Training(num_epochs, resultDf, trainS, trainE,esPatience)
 ut.PRPlot('Training', y_train_pred.detach().numpy(), y_train)
 print("Traning MSE loss : ",loss.item())
 

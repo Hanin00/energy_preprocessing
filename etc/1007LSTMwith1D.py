@@ -65,7 +65,8 @@ def load_data(stock, look_back):
 
 
 # look_back = 7  # choose sequence length
-look_back = 7  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
+# look_back = 7  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
+look_back = 28  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
 x_train, y_train, x_test, y_test = load_data(resultDf, look_back)
 print('x_train.shape = ', x_train.shape)
 print('y_train.shape = ', y_train.shape)
@@ -123,8 +124,6 @@ class LSTM(nn.Module):
 
 
 model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-
-
 loss_fn = torch.nn.MSELoss()
 
 optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
