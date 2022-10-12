@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
-import Util as ut
+import Util3 as ut
 
 pd.set_option('display.max_columns', None)
 ARTrainset = pd.read_pickle("./data/ARTrainset.pkl")

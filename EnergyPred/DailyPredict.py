@@ -20,13 +20,12 @@ from torch.utils.data import DataLoader
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
-import Util as ut
+import Util3 as ut
 
 
 
 pd.set_option('display.max_columns', None)
 ARTrainset = pd.read_pickle("./data/ARTrainset.pkl")
-
 
 
 # 데이터 불러오기(10분 단위 데이터)
@@ -38,6 +37,8 @@ resultDf = ut.slicerFreq(df1D, freq, dateColumn) #일 단위 데이터로 변환
 
 lenXm = 7
 lenXl = 28
+
+
 testYs, testXs,  testXm, testXl = ut.testDataTrimming(ARTrainset, lenXm, lenXl)
 
 testS = '2021-08-01'

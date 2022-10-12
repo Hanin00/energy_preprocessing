@@ -23,6 +23,8 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
 
 
+# Xs에 LSTM 적용
+
 class LSTMModel(nn.Module):
     def __init__(self,input_dim, inputXs_dim, inputXm_dim, inputXl_dim, hidden_dim, num_layers, output_dim):
         super(LSTMModel, self).__init__()
@@ -44,11 +46,9 @@ class LSTMModel(nn.Module):
         self.fcXl = nn.Linear(hidden_dim, output_dim)
 
 
-        # self.lstmXs = LSTM(inputXs_dim, hiddenXs_dim, numlayers, batch_first=True)
-        # self.lstmXs = LSTM(inputXs_dim, hiddenXs_dim, numlayers, batch_first=True)
-        self.lstmXs = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-        # self.lstmXm = nn.LSTM(inputXm_dim, hidden_dim, num_layers, batch_first=True)
-        # self.lstmXl = nn.LSTM(inputXl_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstmXs = nn.LSTM(inputXs_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstmXm = nn.LSTM(inputXm_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstmXl = nn.LSTM(inputXl_dim, hidden_dim, num_layers, batch_first=True)
 
     def forward(self, xs_input, xm_input, xl_input, hidden_dim, num_layers, output_dim):
         #xSlstm
@@ -56,44 +56,44 @@ class LSTMModel(nn.Module):
         c0Xs = torch.zeros(self.num_layers, xs_input.size(0), self.hidden_dim).requires_grad_()  # 2, 942, 128
 
         # out, _ = self.lstmXs(x)
-        # xSlstmRes, (hn, cn) = self.lstmXs(xs_input)
-        xSlstmRes, (hn, cn) = self.lstmXs(xs_input, (h0Xs.detach(), c0Xs.detach()))
+        xSlstmRes, (hn, cn) = self.lstmXs(xs_input)
+        # xSlstmRes, (hn, cn) = self.lstmXs(xs_input, (h0Xs.detach(), c0Xs.detach()))
         xSlstmRes = self.fcXs(xSlstmRes[:, :])
 
-        fc1 = xSlstmRes
 
-       #  #xMlstm
-       #  h0Xm = torch.zeros(self.num_layers, xm_input.size(0), self.hidden_dim).requires_grad_()
-       #  c0Xm = torch.zeros(self.num_layers, xm_input.size(0), self.hidden_dim).requires_grad_()
-       #
-       #  # out, _ = self.lstmXm(x)
-       #  # xMlstmRes,(hn, cn) = self.lstmXm(xm_input)
-       #  xMlstmRes, (hn, cn) = self.lstmXm(xm_input, (h0Xm.detach(), c0Xm.detach()))
-       #
-       #  xMlstmRes = self.fcXm(xMlstmRes[:, :])
-       #
-       #
-       #  #xLlstm
-       #  h0Xl = torch.zeros(self.num_layers, xl_input.size(0), self.hidden_dim).requires_grad_()
-       #  c0Xl = torch.zeros(self.num_layers, xl_input.size(0), self.hidden_dim).requires_grad_()
-       #
-       #  # out, _ = self.lstmXl(x)
-       #  xLlstmRes,(hn, cn) = self.lstmXl(xl_input)
-       #  # xLlstmRes, (hn, cn) = self.lstmXl(xl_input, (h0Xl.detach(), c0Xl.detach()))
-       #  xLlstmRes = self.fcXl(xLlstmRes[:, :])
-       #
-       # #Concat
-       #  lenXl = xLlstmRes.size()[0]
-       #  xSlstmRes = torch.flip(xSlstmRes, [0])  # tensor reverse
-       #  xSlstmRes = xSlstmRes.split(lenXl, dim=0)[0]
-       #
-       #  xMlstmRes = torch.flip(xMlstmRes, [0])  # tensor reverse
-       #  xMlstmRes = xMlstmRes.split(lenXl, dim=0)[0]
-       #
-       #  concatRes = torch.cat((xSlstmRes, xMlstmRes, xLlstmRes), self.input_dim)
-       #
-       #  self.fc = nn.Linear(concatRes.size()[1], output_dim)
-       #  fc1 = self.fc(concatRes[:, :])
+        #xMlstm
+        h0Xm = torch.zeros(self.num_layers, xm_input.size(0), self.hidden_dim).requires_grad_()
+        c0Xm = torch.zeros(self.num_layers, xm_input.size(0), self.hidden_dim).requires_grad_()
+
+        # out, _ = self.lstmXm(x)
+        xMlstmRes,(hn, cn) = self.lstmXm(xm_input)
+        # xMlstmRes, (hn, cn) = self.lstmXm(xm_input, (h0Xm.detach(), c0Xm.detach()))
+
+        xMlstmRes = self.fcXm(xMlstmRes[:,  :])
+
+
+        #xLlstm
+        h0Xl = torch.zeros(self.num_layers, xl_input.size(0), self.hidden_dim).requires_grad_()
+        c0Xl = torch.zeros(self.num_layers, xl_input.size(0), self.hidden_dim).requires_grad_()
+
+        # out, _ = self.lstmXl(x)
+        xLlstmRes,(hn, cn) = self.lstmXl(xl_input)
+        # xLlstmRes, (hn, cn) = self.lstmXl(xl_input, (h0Xl.detach(), c0Xl.detach()))
+        xLlstmRes = self.fcXl(xLlstmRes[:, :])
+
+       #Concat
+        lenXl = xLlstmRes.size()[0]
+        # xSlstmRes = torch.flip(xSlstmRes, [0])  # tensor reverse
+        # xSlstmRes = xSlstmRes.split(lenXl, dim=0)[0]
+
+        xMlstmRes = torch.flip(xMlstmRes, [0])  # tensor reverse
+        xMlstmRes = xMlstmRes.split(lenXl, dim=0)[0]
+
+        concatRes = torch.cat(( xMlstmRes, xLlstmRes), self.input_dim)
+        # concatRes = torch.cat((xSlstmRes, xMlstmRes, xLlstmRes), self.input_dim)
+
+        self.fc = nn.Linear(concatRes.size()[1], output_dim)
+        fc1 = self.fc(concatRes[:, :])
 
         return fc1
 
@@ -183,7 +183,7 @@ def TrainDatasetCreater(resultDf, seq_length, trainS, trainE ):
 
 
 def Training(num_epochs, resultDf, trainS, trainE,esPatience ) :
-    ARTrainset, trainXs_tensor, trainYs_tensor, trainDatasetXs, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 1, trainS, trainE)
+    ARTrainset, trainXs_tensor, trainYs_tensor, trainDatasetXs, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 2, trainS, trainE)
     _, trainXm_tensor, trainYm_tensor, trainDatasetXm, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 7, trainS, trainE)
     _, trainXl_tensor, trainYl_tensor, trainDatasetXl, train_max_pre_normalize, train_min_pre_normalize = TrainDatasetCreater(resultDf, 28, trainS, trainE)
 
@@ -344,6 +344,7 @@ def DailyPredict(lstmPth, arimaPth,predS, predE,testYs_tensor , testXs_tensor, t
     test_max_pre_normalize = max(testset["power_value"])
     test_min_pre_normalize = min(testset["power_value"])
     testFirDenorm = denormalize(predLast, test_max_pre_normalize, test_min_pre_normalize)  # denormalize 된 원래 의 값
+
 
     resultDf = pd.DataFrame(resultDf, columns=["power_value"])
     origin_max_pre_normalize = max(resultDf["power_value"])

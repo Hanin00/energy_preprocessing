@@ -112,6 +112,7 @@ class LSTM(nn.Module):
 
         # batch_first=True causes input/output tensors to be of shape
         # (batch_dim, seq_dim, feature_dim)
+
         self.lstmXs = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.lstmXl = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
@@ -121,17 +122,12 @@ class LSTM(nn.Module):
         self.fcXl = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, xs, xm, xl):
+        #xm
         # Initialize hidden state with zeros
         hm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
         cm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
-        # outXm, _ = self.lstmXm(xm)
         outXm, (hn, cn) = self.lstmXm(xm, (hm0.detach(), cm0.detach()))
-
-        # Index hidden state of last time step
-        # out.size() --> 100, 32, 100
-        # out[:, -1, :] --> 100, 100 --> just want last time step hidden states!
         outXm = self.fcXm(outXm[:, -1, :])
-
 
         # out.size() --> 100, 10
         return outXm

@@ -221,7 +221,7 @@ def Training(num_epochs, resultDf, trainS, trainE,esPatience ) :
     print("LSTM start ")
     for t in range(num_epochs):
         y_train_pred = model(trainXs_tensor, trainXm_tensor, trainXl_tensor, hidden_dim, num_layers, output_dim)
-        # y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
+        y_train = torch.flip(trainYs_tensor, [0])  # tensor reverse
         # y_train = y_train.split(len(y_train_pred), dim=0)[0]
         y_train = trainYs_tensor.split(len(y_train_pred), dim=0)[0]
         # preds_arima = preds_arima.split(len(y_train_pred), dim=0)[0]

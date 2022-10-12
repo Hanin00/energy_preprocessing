@@ -67,6 +67,9 @@ def load_data(stock, look_back):
 # look_back = 7  # choose sequence length
 # look_back = 7  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
 look_back = 28  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
+
+print(resultDf.head())
+sys.exit()
 x_train, y_train, x_test, y_test = load_data(resultDf, look_back)
 print('x_train.shape = ', x_train.shape)
 print('y_train.shape = ', y_train.shape)
@@ -82,12 +85,12 @@ print(y_train.size(), x_train.size())
 
 # Build model
 #####################
-input_dim = 1
+# input_dim = 1
 hidden_dim = 128
 num_layers = 2
 output_dim = 1
 
-
+#
 # Here we define our model as a class
 class LSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers,
@@ -114,6 +117,7 @@ class LSTM(nn.Module):
         # We need to detach as we are doing truncated backpropagation through time (BPTT)
         # If we don't, we'll backprop  all the way to the start even after going through another batch
         out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
+
 
         # Index hidden state of last time step
         # out.size() --> 100, 32, 100
@@ -207,7 +211,7 @@ for _ in range(len(x_test)):
     new_seq = test_seq.numpy()
     new_seq = np.append(new_seq, pred)
     new_seq = new_seq[1:]  ## index가 0인 것은 제거하여 예측값을 포함하여 7일치 데이터 구성
-    test_seq = torch.from_numpy(new_seq).view(1, 6, 1).float()
+    test_seq = torch.from_numpy(new_seq).view(1, 27, 1).float()
 
 plt.title('graph4')
 plt.plot(preds, label="Preds")
