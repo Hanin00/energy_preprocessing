@@ -231,21 +231,3 @@ plt.plot(range(y_train.__len__(), y_train.__len__()+y_test.__len__()),pred_value
 #plt.xlim(70)
 plt.legend()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

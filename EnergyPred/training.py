@@ -47,21 +47,22 @@ num_epochs = 200
 
 '''
     Util : Xs에 LSTM 적용 X - ARIMA 예측값 X <- 수렴 X, 
-    Util2 : Xs 에 LSTM 적용 O - ARIMA 예측값 X <- 수렴,  Traning MSE loss :  0.22228293120861053
+    Util2 : Xs 에 LSTM 적용 O - ARIMA 예측값 X <- 수렴 X,  Traning MSE loss :  0.22228293120861053
     Util3 : Xs 만 LSTM 사용 - ARIMA 예측값 X <- 수렴 O, Xs - Traning MSE loss :  4.96087113788235e-06, Xm만 사용 - Traning MSE loss :  3.704776827362366e-05
     Util4 : Xs도 LSTM 사용 - ARIMA 예측값 X <- 수렴 X, 
     Util5 : Xs만 LSTM 사용 - ARIMA 예측값 O <- 수렴 O,Traning MSE loss :  0.00047351937973871827 <- ARIMA를 더했을 경우 더 안좋은 것을 알 수 있음
 '''
 
-# ARTrainset,y_train_pred ,y_train , loss = ut.Training(num_epochs, resultDf, trainS, trainE,esPatience)
+ARTrainset,y_train_pred ,y_train , loss = ut.Training(num_epochs, resultDf, trainS, trainE,esPatience) #기존
 # ARTrainset,y_train_pred ,y_train , loss = ut2.Training(num_epochs, resultDf, trainS, trainE,esPatience)
-ARTrainset, y_train_pred ,y_train , loss = ut3.Training(num_epochs, resultDf, trainS, trainE)
+# ARTrainset, y_train_pred ,y_train , loss = ut3.Training(num_epochs, resultDf, trainS, trainE)
 # y_train_pred ,y_train , loss = ut4.Training(num_epochs, resultDf, trainS, trainE)
 # ARTrainset, y_train_pred ,y_train , loss = ut5.Training(num_epochs, resultDf, trainS, trainE)
+# ut4.PRPlot('Training', y_train_pred.detach().numpy(), y_train.detach().numpy())
 ut4.PRPlot('Training', y_train_pred.detach().numpy(), y_train.detach().numpy())
 print("Traning MSE loss : ",loss.item())
 
-# ARTrainset.to_pickle("./data/ARTrainset.pkl") #Util3,5
+ARTrainset.to_pickle("./data/ARTrainset.pkl") #Util3,5
 
 
 

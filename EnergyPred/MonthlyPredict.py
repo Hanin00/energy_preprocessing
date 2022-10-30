@@ -20,7 +20,8 @@ from torch.utils.data import DataLoader
 from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import statsmodels.api as sm
-import Util3 as ut
+# import Util3 as ut
+import Util as ut
 
 pd.set_option('display.max_columns', None)
 ARTrainset = pd.read_pickle("./data/ARTrainset.pkl")
@@ -31,8 +32,14 @@ freq = 'D'
 
 resultDf = ut.slicerFreq(df1D, freq, dateColumn)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
+resultDf.to_csv("./data/result_pv_0831.csv")
+sys.exit()
+
+
 dateTerm = 28
 predS = '2021-08-01'
+
+
 lenXm = 7
 lenXl = 28
 
@@ -44,6 +51,25 @@ dailyPredS = '2021-07-04'
 dailyPredE = '2021-08-01'
 
 testYs, testXs,  testXm, testXl = ut.testDataTrimming(ARTrainset, lenXm, lenXl)
+
+#arima loss
+arima_model_fit = torch.load(arimaPth)
+
+arima_test_pred = arima_model_fit.get_prediction('2021-08-01','2021-08-28')
+arima_test_pred = arima_test_pred.predicted_mean  # : 31
+arima_test_pred = torch.FloatTensor(arima_test_pred)
+arima_test_pred = torch.flip(arima_test_pred, [0])
+arima_test_pred = torch.unsqueeze(arima_test_pred, 1)
+
+loss_fn = torch.nn.MSELoss()
+loss = loss_fn(arima_test_pred, testYs)
+
+print("ARIMA test MSE loss : ", loss)
+
+sys.exit()
+
+
+
 dailyPredInput = [lstmPth, arimaPth,dailyPredS, dailyPredE, testYs, testXs, testXm, testXl,  resultDf, ARTrainset]
 
 resultDf30, y_test_pred, y_test, loss = ut.MonthlyPred(dateTerm, predS, lenXm ,lenXl, dailyPredInput )

@@ -69,7 +69,6 @@ def load_data(stock, look_back):
 look_back = 28  # choose sequence length <- 하루. 1008이 일주일인데, 이렇게 하니까 OoM 오류 남
 
 print(resultDf.head())
-sys.exit()
 x_train, y_train, x_test, y_test = load_data(resultDf, look_back)
 print('x_train.shape = ', x_train.shape)
 print('y_train.shape = ', y_train.shape)
@@ -109,6 +108,7 @@ class LSTM(nn.Module):
 
     def forward(self, x):
         # Initialize hidden state with zeros
+
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
 
         # Initialize cell state

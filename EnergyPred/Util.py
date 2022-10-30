@@ -82,6 +82,10 @@ class LSTMModel(nn.Module):
             if whatIs == 1 :
                 fc = nn.Linear(hidden_dim, output_dim)
 
+                # print(type(self.num_layers))
+                # print(type(x.size(0)))
+                # print(type(self.hidden_dim))
+
                 h0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
                 c0 = torch.zeros(num_layers, x.size(0), hidden_dim).requires_grad_()
 

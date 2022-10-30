@@ -42,9 +42,7 @@ class LSTMModel(nn.Module):
         self.lstmXl = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         # Readout layer
         # self.fc = nn.Linear( xl_len, self.output_dim)  #756x1
-        self.fcXs = nn.Linear(self.hidden_dim, self.output_dim)
-        self.fcXm = nn.Linear(self.hidden_dim, self.output_dim)
-        self.fcXl = nn.Linear(self.hidden_dim, self.output_dim)
+        self.fc = nn.Linear(self.hidden_dim, self.output_dim)
 
 
     def forward(self, xs,xm,xl):        # Initialize hidden state with
@@ -52,18 +50,18 @@ class LSTMModel(nn.Module):
         hs0 = torch.zeros(self.num_layers, xs.size(0), self.hidden_dim).requires_grad_()
         cs0 = torch.zeros(self.num_layers, xs.size(0), self.hidden_dim).requires_grad_()
         outXs, (hn, cn) = self.lstmXs(xs, (hs0.detach(), cs0.detach()))
-        outXs = self.fcXs(outXs[:, -1, :])
+        outXs = self.fc(outXs[:, -1, :])
         #Xm
         hm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
         cm0 = torch.zeros(self.num_layers, xm.size(0), self.hidden_dim).requires_grad_()
         outXm, (hn, cn) = self.lstmXm(xm, (hm0.detach(), cm0.detach()))
-        outXm = self.fcXm(outXm[:, -1, :])
+        outXm = self.fc(outXm[:, -1, :])
 
         #Xl
         hl0 = torch.zeros(self.num_layers, xl.size(0), self.hidden_dim).requires_grad_()
         cl0 = torch.zeros(self.num_layers, xl.size(0), self.hidden_dim).requires_grad_()
         outXl, (hn, cn) = self.lstmXl(xl, (hl0.detach(), cl0.detach()))
-        outXl = self.fcXl(outXl[:, -1, :])
+        outXl = self.fc(outXl[:, -1, :])
 
         # Concat
         lenXl = outXl.size()[0]
@@ -91,8 +89,6 @@ def Training(num_epochs, resultDf, trainS, trainE ) :
     _,trainXl_tensor, xl_test, trainYl_tensor, yl_test= TrainDatasetCreater(resultDf, 29, trainS, trainE)
 
 
-
-
     input_dim = 1
     hidden_dim = 128
     num_layers = 2
@@ -109,7 +105,6 @@ def Training(num_epochs, resultDf, trainS, trainE ) :
 
     # Train model
     hist = np.zeros(num_epochs)
-
 
     print("LSTM start ")
     for t in range(num_epochs):
