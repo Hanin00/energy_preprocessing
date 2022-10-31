@@ -30,6 +30,7 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
         seq_x, seq_y = sequences[i:end_ix, :-1], sequences[end_ix:out_end_ix + 1, -1]
         X.append(seq_x)
         y.append(seq_y)
+
     return array(X), array(y)
 
 
@@ -49,7 +50,7 @@ in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg',
 out_cols = ['power_value']  #예측 대상
 
 # choose a number of time steps
-n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
+n_steps_in, n_steps_out = 28, 1 # 이전 30일 보고 하루 예측
 # n_steps_in, n_steps_out = 30, 7 # 이전 30일 보고 7일 예측
 
 # ==============================================================================
@@ -72,9 +73,10 @@ scaled_data = dataset_low
 
 
 # convert into input/output
+train_set_size = 900
+# x_train, y_train = split_sequences(scaled_data[:train_set_size,:], n_steps_in, n_steps_out)
 x_train, y_train = split_sequences(scaled_data[:train_set_size], n_steps_in, n_steps_out)
-train_set_size = int(0.2 * scaled_data.shape[0])
-x_test, y_test = split_sequences(scaled_data[-train_set_size:-1, :], n_steps_in, n_steps_out)
+x_test, y_test = split_sequences(scaled_data[train_set_size:-1, :], n_steps_in, n_steps_out)
 
 # make training and test sets in torch
 x_train = torch.from_numpy(x_train).type(torch.Tensor)
@@ -84,14 +86,20 @@ y_test = torch.from_numpy(y_test).type(torch.Tensor)
 
 print(y_train.size(), x_train.size())
 
+
+print(x_test) # 973  = 945 +28(참고하는 step)
+print(len(x_test))
+
+
+
 # Build model
 ##################################################
-
-input_dim = 7 # feature 개수 - power value 까지
-hidden_dim = 32
-num_layers = 2
-output_dim = 1
-num_epochs = 2000
+#
+# input_dim = 7 # feature 개수 - power value 까지
+# hidden_dim = 32
+# num_layers = 2
+# output_dim = 1
+# num_epochs = 2000
 
 
 # Here we define our model as a class
@@ -120,7 +128,8 @@ class LSTM(nn.Module):
         return out
 
 
-model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+# model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+model = torch.load("./model/multi_torch2.pt")
 
 loss_fn = torch.nn.MSELoss(size_average=True)
 
@@ -128,17 +137,17 @@ optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 # print(model)
 # print(len(list(model.parameters())))
 
+#
+# #
+# for i in range(len(list(model.parameters()))):
+#     print(list(model.parameters())[i].size())
+#
+# # Train model
+# ##################################################################
 
+hist = np.zeros(1)
 
-for i in range(len(list(model.parameters()))):
-    print(list(model.parameters())[i].size())
-
-# Train model
-##################################################################
-
-hist = np.zeros(num_epochs)
-
-for t in range(num_epochs):
+for t in range(1):
     # Initialise hidden state
     # Forward pass
     y_train_pred = model(x_train)
@@ -165,11 +174,23 @@ for t in range(num_epochs):
 # make predictions
 y_test_pred = model(x_test)
 
+print(y_test_pred)
+print(y_test_pred.shape)
 
-trainScore = loss_fn(y_train, y_train_pred)
-print('Train Score: %.8f MSE' % (trainScore))
-testScore = loss_fn(y_test, y_test_pred)
-print('Test Score: %.8f MSE' % (testScore))
+
+resultdf = pd.DataFrame({"yTest" : [*(y_test[:,-1].tolist())],
+                         "yPred" : [*(y_test_pred[:,-1].tolist())]})
+print(resultdf)
+
+
+
+trainScore = torch.sqrt(loss_fn(y_train[:,0], y_train_pred[:,0]))
+print('Train Score: %.8f RMSE' % (trainScore))
+testScore = torch.sqrt(loss_fn(y_test, y_test_pred))
+print('Test Score: %.8f RMSE' % (testScore))
+
+sys.exit()
+
 
 # trainScore = (mean_squared_error(y_train_pred.detach().numpy(), y_train.detach().numpy()))
 # print('Train Score: %.8f MSE' % (trainScore))

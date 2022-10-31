@@ -45,7 +45,7 @@ for col in df.columns:
 print(df.info())
 
 # in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning']
-in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning'] # target을 왜 feature로 넣어야 하나..?
+in_cols = ['temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning'] # target을 왜 feature로 넣어야 하나..?
 out_cols = ['power_value']  #예측 대상
 
 # choose a number of time steps
@@ -57,10 +57,7 @@ n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
 j = 0
 
 # Scaling dataset
-print(df.head())
-cols = df.columns[2:]
-print(cols)
-for col in cols:
+for col in in_cols:
     scaler = MinMaxScaler(feature_range=(0, 1))
     df[col] = scaler.fit_transform(df[col].values.reshape(-1,1))
 
@@ -72,8 +69,9 @@ scaled_data = dataset_low
 
 
 # convert into input/output
-x_train, y_train = split_sequences(scaled_data[:train_set_size], n_steps_in, n_steps_out)
-train_set_size = int(0.2 * scaled_data.shape[0])
+x_train, y_train = split_sequences(scaled_data, n_steps_in, n_steps_out)
+
+train_set_size = 900
 x_test, y_test = split_sequences(scaled_data[-train_set_size:-1, :], n_steps_in, n_steps_out)
 
 # make training and test sets in torch
@@ -87,7 +85,7 @@ print(y_train.size(), x_train.size())
 # Build model
 ##################################################
 
-input_dim = 7 # feature 개수 - power value 까지
+input_dim = 6 # feature 개수 - power value 까지
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
@@ -142,12 +140,7 @@ for t in range(num_epochs):
     # Initialise hidden state
     # Forward pass
     y_train_pred = model(x_train)
-    print("y_train_pred[:10] : ")
-    print(y_train_pred[:10])
-    print("y_train[:10] : ")
-    print(y_train[:10])
     loss = loss_fn(y_train_pred, y_train)
-
     if t % 10 == 0 and t != 0:
         print("Epoch ", t, "MSE: ", loss.item())
     hist[t] = loss.item()
@@ -161,41 +154,40 @@ for t in range(num_epochs):
     # Update parameters
     optimiser.step()
 
+torch.save(model, "./model/multi_torch2_withoutPV.pt")
+
 
 # make predictions
 y_test_pred = model(x_test)
-
 
 trainScore = loss_fn(y_train, y_train_pred)
 print('Train Score: %.8f MSE' % (trainScore))
 testScore = loss_fn(y_test, y_test_pred)
 print('Test Score: %.8f MSE' % (testScore))
 
-# trainScore = (mean_squared_error(y_train_pred.detach().numpy(), y_train.detach().numpy()))
-# print('Train Score: %.8f MSE' % (trainScore))
-# testScore = (mean_squared_error(y_test[:,0].detach().numpy(), y_test_pred[:].detach().numpy()))
-# print('Test Score: %.8f MSE' % (testScore))
 
 
-torch.save(model, "./model/multi_torch2.pt")
 
 plt.plot(y_train_pred.detach().numpy(), label="Preds")
 plt.plot(y_train.detach().numpy(), label="Data")
 plt.legend()
-plt.savefig("./output/train.png")
+plt.savefig("./output/withoutPv-train.png")
 # plt.show()
 
 
 plt.plot(hist, label="Training loss")
 plt.legend()
-plt.savefig("./output/training_loss.png")
+plt.savefig("./output/withoutPv-training_loss.png")
 # plt.show()
 
 plt.plot(y_test_pred.detach().numpy(), label="Preds")
 plt.plot(y_test.detach().numpy(), label="Data")
 plt.legend()
-plt.savefig("./output/pred.png")
+plt.savefig("./output/withoutPv-pred.png")
 # plt.show()
+
+
+
 
 
 
@@ -203,29 +195,17 @@ plt.savefig("./output/pred.png")
 
 sys.exit()
 
-
-
-
 ytrainpred_copies_array = np.repeat(y_train_pred.detach().numpy(),input_dim+1, axis=-1)
 y_train_pred=scaler.inverse_transform(np.reshape(ytrainpred_copies_array,(len(y_train_pred),input_dim+1)))[:,0]
-
-
 
 ytrain_copies_array = np.repeat(y_train.detach().numpy(),input_dim+1, axis=-1)
 y_train=scaler.inverse_transform(np.reshape(ytrain_copies_array,(len(y_train),input_dim+1)))[:,0]
 
-# y_test_pred = scaler_all.inverse_transform(y_test_pred.detach().numpy())
 ytestpred_copies_array = np.repeat(y_test_pred.detach().numpy(),input_dim+1, axis=-1)
 y_test_pred=scaler.inverse_transform(np.reshape(ytestpred_copies_array,(len(y_test_pred),input_dim)))[:,0]
-# y_test = scaler_all.inverse_transform(y_test.detach().numpy())
+
 ytest_copies_array = np.repeat(y_test.detach().numpy(),input_dim, axis=-1)
 y_test=scaler.inverse_transform(np.reshape(ytest_copies_array,(len(y_test),input_dim)))[:,0]
-
-
-trainScore = (mean_squared_error(y_train[:], y_train_pred[:]))
-print('Train Score: %.2f MSE' % (trainScore))
-testScore = (mean_squared_error(y_test[:], y_test_pred[:]))
-print('Test Score: %.2f MSE' % (testScore))
 
 # calculate root mean squared error
 trainScore = math.sqrt(mean_squared_error(y_train[:], y_train_pred[:]))
@@ -234,29 +214,10 @@ testScore = math.sqrt(mean_squared_error(y_test[:], y_test_pred[:]))
 print('Test Score: %.2f RMSE' % (testScore))
 
 
-
-
-# y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy())
-# y_train = scaler_all.inverse_transform(y_train.detach().numpy())
-# y_test_pred = scaler_all.inverse_transform(y_test_pred.detach().numpy())
-# y_test = scaler_all.inverse_transform(y_test.detach().numpy())
-
 print("test loss : ",loss_fn(y_test_pred, y_test))
-
-sys.exit()
-
-
-
-
 print("y_train[0] : ",y_train[0])
 # invert predictions
 # y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy()) #input dim이 3인데 ypred 값은 1개만 나오니까
-
-
-
-
-sys.exit()
-
 
 
 print(y_test_pred)

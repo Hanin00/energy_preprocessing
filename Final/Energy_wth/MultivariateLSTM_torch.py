@@ -12,15 +12,6 @@ from torch import nn
 import warnings
 warnings.filterwarnings(action='ignore')
 
-#하루 예측 후 그 다음값들은 다른 feature들고 같이 들어가는지 확인. 그리고 powervalue 가 맞는지.
-#지금 들어가는 꼴을 보아하니 아닌 것 같음...
-#값 normalize도 안되어 있음. 해당 부분 수정해야함. 근데 어디에? pv_ 만? 온도도 해야하나?
-
-
-#todo - 이 모델 사용하려면 예측값의 범위를 time index 로 갖는 dataframe을 만들어야 함
-
-
-
 '''
     createXY() : read each steps properly
         n_past : #step we will look in the past to predict the next target value
@@ -63,34 +54,47 @@ def build_model(optimizer):
 df = pd.read_csv('./data/result_pv_1031_2.csv',
                  index_col='updated',)  #5203
 
-time_shift = 28
+
+#결측치 보간
+for col in df.columns:
+    df_intp_linear = df.interpolate()
+    df[col] = df_intp_linear[col]
+
+
+# print(df.info())
+
+time_shift = 28 # 28일 예측
 
 target_data = df['power_value'].shift(time_shift)
-data = df.iloc[:-time_shift] #5196
+data = df.iloc[:-time_shift] # 마지막 날짜에서 28일에 대해서는 확인할 수 없으므로 shift
+# print(data.head(35))
+# print(data.tail(35)) #2021-08-03일까지만 예측함
+
 
 #spilt
 # test_head = data.index[int(0.8*len(data))] # 2015-07-31
-test_head = data.index[-30] # 2015-07-31
-print("test_head : ",test_head)
-df_train = df.loc[:test_head,:] #4157
-df_test = df.loc[test_head:,:]
-target_train = target_data.loc[:test_head]
-target_test = target_data.loc[test_head:]
+train_tail = data.index[900] # 2015-07-31
+print("test_head : ",train_tail)
+df_train = df.loc[:train_tail,:] #4157
+df_test = df.loc[train_tail:,:]
+target_train = target_data.loc[:train_tail]
+target_test = target_data.loc[train_tail:]
 
-cols_means = {}
-for col in df.columns:
-    cols_means[col] = df_train[col].mean()
-    df_train[col] = df_train[col].fillna(value=cols_means[col])
-    df_test[col] = df_test[col].fillna(value=cols_means[col])
+# 결측치 보간 해서 drop 하지 않음
+# cols_means = {}
+# for col in df.columns:
+#     cols_means[col] = df_train[col].mean()
+#     df_train[col] = df_train[col].fillna(value=cols_means[col])
+#     df_test[col] = df_test[col].fillna(value=cols_means[col])
 
-print("df_train.tail() : ",df_train.tail())
-print("df_test.head() : ", df_test.head())
-print("df_test.tail() : ",df_test.tail())
+# print("df_train.tail() : ",df_train.tail())
+# print("df_test.head() : ", df_test.head())
+# print("df_test.tail() : ",df_test.tail())
 
 
 #dataset에 step(*sequence_length) 적용
 class SequenceDataset(Dataset):
-    def __init__(self, dataframe, target, features, sequence_length=6):
+    def __init__(self, dataframe, target, features, sequence_length=28):
         self.features = features
         self.target = target
         self.sequence_length = sequence_length
@@ -131,7 +135,6 @@ X, y = next(iter(train_loader))
 '''
 
 
-
 batch_size = 4
 sequence_length = 28 #이전 28일을 참고해 예측
 #mk train_dataset
@@ -153,11 +156,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 X, y = next(iter(train_loader))
-print("y : ", y)
-
-sys.exit()
-
-
+# print("y : ", y)
 
 def train_model(data_loader, model, loss_function, optimizer):
     num_batches = len(data_loader)
@@ -167,7 +166,7 @@ def train_model(data_loader, model, loss_function, optimizer):
     for X, y in data_loader:
         output = model(X)
         loss = loss_function(output, y)
-
+        print("train__ loss : " , loss)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -186,6 +185,8 @@ def test_model(data_loader, model, loss_function):
     with torch.no_grad():
         for X, y in data_loader:
             output = model(X)
+            loss = loss_function(output, y)
+            print("test__ loss : ", loss)
             total_loss += loss_function(output, y).item()
 
     avg_loss = total_loss / num_batches
@@ -242,23 +243,21 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 print("Untrained test\n--------")
 test_model(test_loader, model, loss_function)
-print()
 
-for ix_epoch in range(10):
+Epoch = 300
+
+for ix_epoch in range(Epoch):
     print(f"Epoch {ix_epoch}\n---------")
     train_model(train_loader, model, loss_function, optimizer=optimizer)
     test_model(test_loader, model, loss_function)
-
-
-
 
 train_eval_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 
 ystar_col = "Model forecast"
 df_train[ystar_col] = predict(train_eval_loader, model).numpy()
 df_test[ystar_col] = predict(test_loader, model).numpy()
-
 df_out = pd.concat((df_train, df_test))[[target, ystar_col]]
+
 
 # for c in df_out.columns:
 #     df_out[c] = df_out[c] * target_stdev + target_mean
