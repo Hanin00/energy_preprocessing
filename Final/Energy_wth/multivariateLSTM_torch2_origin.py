@@ -1,5 +1,4 @@
 #ref) https://github.com/kianData/PyTorch-Multivariate-LSTM
-
 # -*- coding: utf-8 -*-
 """
 Created on Sun Oct 25 11:17:43 2020
@@ -40,16 +39,14 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
 df = pd.read_csv('./data/goldETF.csv')
 
 in_cols = ['Open', 'Low', 'Close']
-# out_cols = ['Close', 'Low']
-out_cols = ['Close']
+out_cols = ['Close', 'Low']
 
 # choose a number of time steps
-n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
+n_steps_in, n_steps_out = 45, 4
 
 # ==============================================================================
 # Preparing Model for 'Low'=======================================================
-# j = 1
-j = 0
+j = 1
 dataset_low = np.empty((df[out_cols[j]].values.shape[0], 0))
 for i in range(len(in_cols)):
     dataset_low = np.append(dataset_low, df[in_cols[i]].values.reshape(df[in_cols[i]].values.shape[0], 1), axis=1)
@@ -73,7 +70,7 @@ x_test = torch.from_numpy(x_test).type(torch.Tensor)
 y_train = torch.from_numpy(y_train).type(torch.Tensor)
 y_test = torch.from_numpy(y_test).type(torch.Tensor)
 
-print(y_train.size(), x_train.size())
+y_train.size(), x_train.size()
 
 # Build model
 ##################################################
@@ -82,7 +79,7 @@ input_dim = 3
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
-num_epochs = 30
+num_epochs = 10
 
 
 # Here we define our model as a class
@@ -165,40 +162,26 @@ plt.show()
 
 # make predictions
 y_test_pred = model(x_test)
-y_test = y_test.detach().numpy()
-print(y_test_pred)
-print(y_test)
-
-
-print("test loss : ",loss_fn(y_test_pred, y_test))
-sys.exit()
-
 
 # invert predictions
-# y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy()) #input dim이 3인데 ypred 값은 1개만 나오니까
 ytrainpred_copies_array = np.repeat(y_train_pred.detach().numpy(),4, axis=-1)
-y_train_pred=scaler.inverse_transform(np.reshape(ytrainpred_copies_array,(len(y_train_pred),4)))[:,0]
-#y_train = scaler_all.inverse_transform(y_train.detach().numpy())
 ytrain_copies_array = np.repeat(y_train.detach().numpy(),4, axis=-1)
-y_train=scaler.inverse_transform(np.reshape(ytrain_copies_array,(len(y_train),4)))[:,0]
-
-# y_test_pred = scaler_all.inverse_transform(y_test_pred.detach().numpy())
 ytestpred_copies_array = np.repeat(y_test_pred.detach().numpy(),4, axis=-1)
-y_test_pred=scaler.inverse_transform(np.reshape(ytestpred_copies_array,(len(y_test_pred),4)))[:,0]
-# y_test = scaler_all.inverse_transform(y_test.detach().numpy())
 ytest_copies_array = np.repeat(y_test.detach().numpy(),4, axis=-1)
+
+
+y_train_pred=scaler.inverse_transform(np.reshape(ytrainpred_copies_array,(len(y_train_pred),4)))[:,0]
+y_train=scaler.inverse_transform(np.reshape(ytrain_copies_array,(len(y_train),4)))[:,0]
+y_test_pred=scaler.inverse_transform(np.reshape(ytestpred_copies_array,(len(y_test_pred),4)))[:,0]
 y_test=scaler.inverse_transform(np.reshape(ytest_copies_array,(len(y_test),4)))[:,0]
 
-
-trainScore = (mean_squared_error(y_train[:], y_train_pred[:]))
-print('Train Score: %.2f MSE' % (trainScore))
-testScore = (mean_squared_error(y_test[:], y_test_pred[:]))
-print('Test Score: %.2f MSE' % (testScore))
+print(y_test)
+sys.exit()
 
 # calculate root mean squared error
-trainScore = math.sqrt(mean_squared_error(y_train[:], y_train_pred[:]))
+trainScore = math.sqrt(mean_squared_error(y_train[:, 0], y_train_pred[:, 0]))
 print('Train Score: %.2f RMSE' % (trainScore))
-testScore = math.sqrt(mean_squared_error(y_test[:], y_test_pred[:]))
+testScore = math.sqrt(mean_squared_error(y_test[:, 0], y_test_pred[:, 0]))
 print('Test Score: %.2f RMSE' % (testScore))
 
 # plot baseline and predictions

@@ -74,7 +74,7 @@ grid_model = KerasRegressor(build_fn=build_model,verbose=1,validation_data=(test
 # #               'optimizer' : ['adam','Adadelta'] }   #리스트로 각 파라미터의 범위를 정해서 하이퍼파라미터의 최적값을 반환받음
 #
 parameters = {'batch_size' : [20],
-              'epochs' : [1],
+              'epochs' : [30],
               'optimizer' : ['adam'] }   #리스트로 각 파라미터의 범위를 정해서 하이퍼파라미터의 최적값을 반환받음
 grid_search  = GridSearchCV(estimator = grid_model,
                             param_grid = parameters,

@@ -223,7 +223,8 @@ class ShallowRegressionLSTM(nn.Module):
 
 
 # Model Train
-learning_rate = 5e-4
+# learning_rate = 5e-4
+learning_rate =  0.01
 num_hidden_units = 8
 
 model = ShallowRegressionLSTM(num_sensors=len(features), hidden_units=num_hidden_units)
@@ -255,4 +256,4 @@ df_out = pd.concat((df_train, df_test))[[target, ystar_col]]
 
 print(df_out)
 
-
+print(df_test)

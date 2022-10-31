@@ -117,9 +117,9 @@ def PRPlot(title,pred, real) :
     plt.savefig("./output/"+title+".png")
 
 # 10T data -> 1D data resampling & 선형 보간
-def resampleFreq(args,df) :
-    df.set_index(args.dateColumn, inplace=True)
-    resultDf = df.resample(args.freq).last()
+def slicerFreq(df, freq, dateColumn) :
+    df.set_index(dateColumn, inplace=True)
+    resultDf = df.resample(freq).last()
     df_intp_linear = resultDf.interpolate()
     resultDf["power_value"] = df_intp_linear[["power_value"]]
     return resultDf

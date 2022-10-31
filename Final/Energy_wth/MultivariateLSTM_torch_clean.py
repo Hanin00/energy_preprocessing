@@ -135,8 +135,6 @@ class ShallowRegressionLSTM(nn.Module):
         return out
 
 
-
-
 def main() :
     # todo - 1. preprocessing - split & norm- on data
     # data load and split
@@ -225,7 +223,7 @@ def main() :
     # for c in df_out.columns:
     #     df_out[c] = df_out[c] * target_stdev + target_mean
 
-    print(df_out)
+    print(df_out[-30:])
 
 
 
