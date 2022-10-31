@@ -70,11 +70,11 @@ for i in range(len(in_cols)):
 dataset_low = np.append(dataset_low, df[out_cols[j]].values.reshape(df[out_cols[j]].values.shape[0], 1), axis=1)
 scaled_data = dataset_low
 
-
+train_set_size = 900
 # convert into input/output
 x_train, y_train = split_sequences(scaled_data[:train_set_size], n_steps_in, n_steps_out)
-train_set_size = int(0.2 * scaled_data.shape[0])
-x_test, y_test = split_sequences(scaled_data[-train_set_size:-1, :], n_steps_in, n_steps_out)
+
+x_test, y_test = split_sequences(scaled_data[train_set_size:-1, :], n_steps_in, n_steps_out)
 
 # make training and test sets in torch
 x_train = torch.from_numpy(x_train).type(torch.Tensor)
@@ -91,7 +91,7 @@ input_dim = 7 # feature 개수 - power value 까지
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
-num_epochs = 2000
+num_epochs = 20
 
 
 # Here we define our model as a class

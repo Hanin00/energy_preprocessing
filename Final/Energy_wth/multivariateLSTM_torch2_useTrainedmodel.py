@@ -129,7 +129,7 @@ class LSTM(nn.Module):
 
 
 # model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-model = torch.load("./model/multi_torch2.pt")
+model = torch.load("./model_e2000/multi_torch2.pt")
 
 loss_fn = torch.nn.MSELoss(size_average=True)
 
@@ -174,13 +174,22 @@ for t in range(1):
 # make predictions
 y_test_pred = model(x_test)
 
-print(y_test_pred)
-print(y_test_pred.shape)
+# print(y_train_pred)
+#
+# print(y_test_pred)
+# print(y_test_pred.shape)
+#
+# print(y_test_pred[:,-1])
 
 
-resultdf = pd.DataFrame({"yTest" : [*(y_test[:,-1].tolist())],
-                         "yPred" : [*(y_test_pred[:,-1].tolist())]})
+resultdf = pd.DataFrame({"TrainY" : [*(y_train[:,-1].tolist())],
+                         "TrainPred" : [*(y_train_pred[:,0].tolist())]})
 print(resultdf)
+
+
+# resultdf = pd.DataFrame({"yTest" : [*(y_test[:,-1].tolist())],
+#                          "yPred" : [*(y_test_pred[:,-1].tolist())]})
+# print(resultdf)
 
 
 
