@@ -9,6 +9,12 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch import nn
 
+import warnings
+warnings.filterwarnings(action='ignore')
+
+#하루 예측 후 그 다음값들은 다른 feature들고 같이 들어가는지 확인. 그리고 powervalue 가 맞는지.
+#지금 들어가는 꼴을 보아하니 아닌 것 같음...
+#값 normalize도 안되어 있음. 해당 부분 수정해야함. 근데 어디에? pv_ 만? 온도도 해야하나?
 
 
 #todo - 이 모델 사용하려면 예측값의 범위를 time index 로 갖는 dataframe을 만들어야 함
@@ -37,7 +43,7 @@ def createXY(dataset,n_past):
 
 def build_model(optimizer):
     grid_model = Sequential()
-    grid_model.add(LSTM(50,return_sequences=True,input_shape=(30,5)))  # input_shape <-t rainX.shape[1],trainX.shape[2]
+    grid_model.add(LSTM(50,return_sequences=True,input_shape=(30,6)))  # input_shape <-trainX.shape[1],trainX.shape[2]
     grid_model.add(LSTM(50))
     grid_model.add(Dropout(0.2))
     grid_model.add(Dense(1))
@@ -54,16 +60,18 @@ def build_model(optimizer):
 # test.csv : 2021.09.30~2021.11.10
 # df=pd.read_csv("./data/train.csv",parse_dates=["Date"],index_col=[0]) #(5203, 5)
 
-df = pd.read_csv('./data/train.csv',
-                 index_col='Date',)  #5203
+df = pd.read_csv('./data/result_pv_1031_2.csv',
+                 index_col='updated',)  #5203
 
-time_shift = 7  # 마지막 7일에 대해 예측할 거라서.
+time_shift = 28
 
-target_data = df['Open'].shift(time_shift)
+target_data = df['power_value'].shift(time_shift)
 data = df.iloc[:-time_shift] #5196
 
 #spilt
-test_head = data.index[int(0.8*len(data))] # 2015-07-31
+# test_head = data.index[int(0.8*len(data))] # 2015-07-31
+test_head = data.index[-30] # 2015-07-31
+print("test_head : ",test_head)
 df_train = df.loc[:test_head,:] #4157
 df_test = df.loc[test_head:,:]
 target_train = target_data.loc[:test_head]
@@ -75,12 +83,14 @@ for col in df.columns:
     df_train[col] = df_train[col].fillna(value=cols_means[col])
     df_test[col] = df_test[col].fillna(value=cols_means[col])
 
-print(df_test.head())
+print("df_train.tail() : ",df_train.tail())
+print("df_test.head() : ", df_test.head())
+print("df_test.tail() : ",df_test.tail())
 
 
 #dataset에 step(*sequence_length) 적용
 class SequenceDataset(Dataset):
-    def __init__(self, dataframe, target, features, sequence_length=5):
+    def __init__(self, dataframe, target, features, sequence_length=6):
         self.features = features
         self.target = target
         self.sequence_length = sequence_length
@@ -101,9 +111,8 @@ class SequenceDataset(Dataset):
 
         return x, self.y[i]
 
-sequence_length = 7 #예측에 참고할 이전 날짜(step) -> 7일 전의 데이터를 이용해 예측
-features = ['High','Low','Close','Adj Close']
-target = 'Open'  #예측 대상
+features = ['temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min',"weather_warning"]
+target = 'power_value'  #예측 대상
 torch.manual_seed(42) # 초기 가중치 설정에 사용되는 random seed를 고정함
 
 '''
@@ -124,7 +133,7 @@ X, y = next(iter(train_loader))
 
 
 batch_size = 4
-sequence_length = 7
+sequence_length = 28 #이전 28일을 참고해 예측
 #mk train_dataset
 train_dataset = SequenceDataset(
     df_train,
@@ -144,7 +153,9 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 X, y = next(iter(train_loader))
+print("y : ", y)
 
+sys.exit()
 
 
 
@@ -192,8 +203,6 @@ def predict(data_loader, model):
     return output
 
 
-
-
 # todo model
 class ShallowRegressionLSTM(nn.Module):
     def __init__(self, num_sensors, hidden_units):
@@ -235,11 +244,11 @@ print("Untrained test\n--------")
 test_model(test_loader, model, loss_function)
 print()
 
-for ix_epoch in range(30):
+for ix_epoch in range(10):
     print(f"Epoch {ix_epoch}\n---------")
     train_model(train_loader, model, loss_function, optimizer=optimizer)
     test_model(test_loader, model, loss_function)
-    print()
+
 
 
 
@@ -253,7 +262,9 @@ df_out = pd.concat((df_train, df_test))[[target, ystar_col]]
 
 # for c in df_out.columns:
 #     df_out[c] = df_out[c] * target_stdev + target_mean
+# print(df_out)
+# print(df_out.tail())
+# print(df_test.head())
+# print(df_test)
 
-print(df_out)
-
-print(df_test)
+print(df_test[['power_value', ystar_col]])

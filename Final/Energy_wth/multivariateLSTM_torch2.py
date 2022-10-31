@@ -19,6 +19,9 @@ import torch
 import torch.nn as nn
 
 
+#todo 결측치 선형보간
+
+
 # split a multivariate sequence into samples
 def split_sequences(sequences, n_steps_in, n_steps_out):
     X, y = list(), list()
@@ -37,29 +40,34 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
 
 
 # reading data frame ==================================================
-df = pd.read_csv('./data/goldETF.csv')
+# df = pd.read_csv('./data/goldETF.csv')
+df = pd.read_csv('./data/result_pv_1031_2.csv')
 
-in_cols = ['Open', 'Low', 'Close']
-# out_cols = ['Close', 'Low']
-out_cols = ['Close']
+df = df.dropna()
+
+
+
+in_cols = ['temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning']
+out_cols = ['power_value']  #예측 대상
 
 # choose a number of time steps
-n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
+# n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
+n_steps_in, n_steps_out = 30, 7 # 이전 30일 보고 7일 예측
 
 # ==============================================================================
 # Preparing Model for 'Low'=======================================================
 # j = 1
 j = 0
+
 dataset_low = np.empty((df[out_cols[j]].values.shape[0], 0))
 for i in range(len(in_cols)):
     dataset_low = np.append(dataset_low, df[in_cols[i]].values.reshape(df[in_cols[i]].values.shape[0], 1), axis=1)
 
 dataset_low = np.append(dataset_low, df[out_cols[j]].values.reshape(df[out_cols[j]].values.shape[0], 1), axis=1)
-
 # Scaling dataset
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaler_all = scaler.fit(dataset_low)
-scaled_data = scaler_all.transform(dataset_low)
+scaled_data = scaler_all.transform(dataset_low) #ndarray(974, 6)
 
 # convert into input/output
 x_train, y_train = split_sequences(scaled_data, n_steps_in, n_steps_out)
@@ -78,11 +86,11 @@ print(y_train.size(), x_train.size())
 # Build model
 ##################################################
 
-input_dim = 3
+input_dim = 6 # feature 개수
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
-num_epochs = 30
+num_epochs = 2000
 
 
 # Here we define our model as a class
@@ -102,20 +110,12 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        # Initialize hidden state with zeros
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
-
-        # Initialize cell state
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
 
-        # One time step
-        # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop all the way to the start even after going through another batch
         out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
 
-        # Index hidden state of last time step
         out = self.fc(out[:, -1, :])
-
         return out
 
 
@@ -124,8 +124,11 @@ model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, 
 loss_fn = torch.nn.MSELoss(size_average=True)
 
 optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
-print(model)
-print(len(list(model.parameters())))
+# print(model)
+# print(len(list(model.parameters())))
+
+
+
 for i in range(len(list(model.parameters()))):
     print(list(model.parameters())[i].size())
 
@@ -136,7 +139,6 @@ hist = np.zeros(num_epochs)
 
 for t in range(num_epochs):
     # Initialise hidden state
-
     # Forward pass
     y_train_pred = model(x_train)
 
@@ -163,31 +165,46 @@ plt.plot(hist, label="Training loss")
 plt.legend()
 plt.show()
 
+
 # make predictions
 y_test_pred = model(x_test)
-y_test = y_test.detach().numpy()
-print(y_test_pred)
-print(y_test)
 
 
-print("test loss : ",loss_fn(y_test_pred, y_test))
+
+trainScore = (mean_squared_error(y_train_pred.detach().numpy(), y_train_pred.detach().numpy()))
+print('Train Score: %.8f MSE' % (trainScore))
+testScore = (mean_squared_error(y_test[:,0].detach().numpy(), y_test_pred[:].detach().numpy()))
+print('Test Score: %.8f MSE' % (testScore))
+
+
+
+sys.exit()
+# calculate root mean squared error
+trainScore = math.sqrt(mean_squared_error(y_train[:], y_train_pred[:]))
+print('Train Score: %.2f RMSE' % (trainScore))
+testScore = math.sqrt(mean_squared_error(y_test[:], y_test_pred[:]))
+print('Test Score: %.2f RMSE' % (testScore))
+
 sys.exit()
 
 
-# invert predictions
-# y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy()) #input dim이 3인데 ypred 값은 1개만 나오니까
-ytrainpred_copies_array = np.repeat(y_train_pred.detach().numpy(),4, axis=-1)
-y_train_pred=scaler.inverse_transform(np.reshape(ytrainpred_copies_array,(len(y_train_pred),4)))[:,0]
-#y_train = scaler_all.inverse_transform(y_train.detach().numpy())
-ytrain_copies_array = np.repeat(y_train.detach().numpy(),4, axis=-1)
-y_train=scaler.inverse_transform(np.reshape(ytrain_copies_array,(len(y_train),4)))[:,0]
+
+
+
+ytrainpred_copies_array = np.repeat(y_train_pred.detach().numpy(),input_dim+1, axis=-1)
+y_train_pred=scaler.inverse_transform(np.reshape(ytrainpred_copies_array,(len(y_train_pred),input_dim+1)))[:,0]
+
+
+
+ytrain_copies_array = np.repeat(y_train.detach().numpy(),input_dim+1, axis=-1)
+y_train=scaler.inverse_transform(np.reshape(ytrain_copies_array,(len(y_train),input_dim+1)))[:,0]
 
 # y_test_pred = scaler_all.inverse_transform(y_test_pred.detach().numpy())
-ytestpred_copies_array = np.repeat(y_test_pred.detach().numpy(),4, axis=-1)
-y_test_pred=scaler.inverse_transform(np.reshape(ytestpred_copies_array,(len(y_test_pred),4)))[:,0]
+ytestpred_copies_array = np.repeat(y_test_pred.detach().numpy(),input_dim+1, axis=-1)
+y_test_pred=scaler.inverse_transform(np.reshape(ytestpred_copies_array,(len(y_test_pred),input_dim)))[:,0]
 # y_test = scaler_all.inverse_transform(y_test.detach().numpy())
-ytest_copies_array = np.repeat(y_test.detach().numpy(),4, axis=-1)
-y_test=scaler.inverse_transform(np.reshape(ytest_copies_array,(len(y_test),4)))[:,0]
+ytest_copies_array = np.repeat(y_test.detach().numpy(),input_dim, axis=-1)
+y_test=scaler.inverse_transform(np.reshape(ytest_copies_array,(len(y_test),input_dim)))[:,0]
 
 
 trainScore = (mean_squared_error(y_train[:], y_train_pred[:]))
@@ -200,6 +217,36 @@ trainScore = math.sqrt(mean_squared_error(y_train[:], y_train_pred[:]))
 print('Train Score: %.2f RMSE' % (trainScore))
 testScore = math.sqrt(mean_squared_error(y_test[:], y_test_pred[:]))
 print('Test Score: %.2f RMSE' % (testScore))
+
+
+
+
+# y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy())
+# y_train = scaler_all.inverse_transform(y_train.detach().numpy())
+# y_test_pred = scaler_all.inverse_transform(y_test_pred.detach().numpy())
+# y_test = scaler_all.inverse_transform(y_test.detach().numpy())
+
+print("test loss : ",loss_fn(y_test_pred, y_test))
+
+sys.exit()
+
+
+
+
+print("y_train[0] : ",y_train[0])
+# invert predictions
+# y_train_pred = scaler_all.inverse_transform(y_train_pred.detach().numpy()) #input dim이 3인데 ypred 값은 1개만 나오니까
+
+
+
+
+sys.exit()
+
+
+
+print(y_test_pred)
+print(len(y_test_pred))
+print(len(y_test_pred[0]))
 
 # plot baseline and predictions
 plt.figure(figsize=(15, 8))

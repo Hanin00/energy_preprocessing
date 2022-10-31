@@ -4,9 +4,9 @@ import numpy as np
 import random
 import pandas as pd
 from pylab import mpl, plt
-
-from datetime import datetime
 import math, time
+from datetime import datetime
+
 import itertools
 import datetime
 from operator import itemgetter
@@ -84,7 +84,7 @@ print(y_train.size(), x_train.size())
 
 # Build model
 #####################
-# input_dim = 1
+input_dim = 1
 hidden_dim = 128
 num_layers = 2
 output_dim = 1
@@ -138,7 +138,7 @@ optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 
 # Train model
 #####################
-num_epochs = 200
+num_epochs = 20
 hist = np.zeros(num_epochs)
 
 # Number of steps to unroll
@@ -190,7 +190,13 @@ y_test = scaler.inverse_transform(y_test.detach().numpy())
 # calculate root mean squared error
 trainScore = math.sqrt(mean_squared_error(y_train[:, 0], y_train_pred[:, 0]))
 print('Train Score: %.2f RMSE' % (trainScore))
+print(y_test.size)
+print(y_test_pred.size)
 testScore = math.sqrt(mean_squared_error(y_test[:, 0], y_test_pred[:, 0]))
+print(testScore)
+sys.exit()
+
+
 print('Test Score: %.2f RMSE' % (testScore))
 
 plt.title('graph3')
@@ -210,8 +216,11 @@ for _ in range(len(x_test)):
     preds.append(pred)
     new_seq = test_seq.numpy()
     new_seq = np.append(new_seq, pred)
+
     new_seq = new_seq[1:]  ## index가 0인 것은 제거하여 예측값을 포함하여 7일치 데이터 구성
+
     test_seq = torch.from_numpy(new_seq).view(1, 27, 1).float()
+
 
 plt.title('graph4')
 plt.plot(preds, label="Preds")
