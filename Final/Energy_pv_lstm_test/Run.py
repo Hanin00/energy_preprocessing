@@ -24,10 +24,14 @@ def resampleFreq(args, df) :
     resultDf = df.resample(args.freq).last()
     df_intp_linear = resultDf.interpolate()
     resultDf[args.target_name] = df_intp_linear[args.target_name]
-    resultDf.to_csv("Final/Energy_pv_lstm/data/power_value_sampling.csv")
-    scaler = MinMaxScaler()
-    resultDf[args.target_name] = scaler.fit_transform(resultDf[args.target_name].values.reshape(-1, 1))
-    return resultDf, scaler
+    #날짜별 차이값으로 power_value 변경
+    resultDf = resultDf.diff(axis=0, periods=1)
+    resultDf.iloc[0] = 0
+    
+    # scaler = MinMaxScaler()
+    # resultDf[args.target_name] = scaler.fit_transform(resultDf[args.target_name].values.reshape(-1, 1))
+
+    return resultDf
 
 def load_data(stock, look_back):
     data_raw = stock.values  # convert to numpy array
@@ -57,7 +61,7 @@ def load_data(stock, look_back):
 
 
 
-def Train(args,model, x_train, y_train,scaler) :
+def Train(args,model, x_train, y_train) :
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
     hist = np.zeros(args.num_epochs)
@@ -74,13 +78,9 @@ def Train(args,model, x_train, y_train,scaler) :
         loss.backward()
         optimiser.step()
 
-    # y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
-    # y_train = scaler.inverse_transform(y_train.detach().numpy())
     trainScore = mean_squared_error(y_train.detach().numpy(),y_train_pred.detach().numpy())
     print('Train Score: %.10f MSE' % (trainScore))
 
-    y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
-    y_train = scaler.inverse_transform(y_train.detach().numpy())
     trainScore = math.sqrt(mean_squared_error(y_train[:, 0], y_train_pred[:, 0]))
     print('Train Score: %.2f RMSE' % (trainScore))
 
@@ -89,15 +89,12 @@ def Train(args,model, x_train, y_train,scaler) :
     torch.save(model,  args.model_save)
     return y_train_pred, y_train,model
 
-def Predict( args,model, x_test, y_test, scaler ) :
+def Predict( args,model, x_test, y_test,  ) :
     y_test_pred = model(x_test)
     # invert predictions
 
     trainScore = mean_squared_error(y_test.detach().numpy(),y_test_pred.detach().numpy())
     print('Train Score: %.10f MSE' % (trainScore))
-
-    y_test_pred = scaler.inverse_transform(y_test_pred.detach().numpy())
-    y_test = scaler.inverse_transform(y_test.detach().numpy())
 
     testScore = math.sqrt(mean_squared_error(y_test[:, 0], y_test_pred[:, 0]))
     print('Test Score: %.2f RMSE' % (testScore))
@@ -108,6 +105,7 @@ def Predict( args,model, x_test, y_test, scaler ) :
 
     with open(args.pred_result, 'w') as csv_file:
         yDf[-30 : ].to_csv(path_or_buf=csv_file)
+
 
     return y_test_pred, y_test
 
@@ -136,11 +134,13 @@ def main():
 
     pd.set_option('display.max_columns', None)
     df1D = pd.read_csv(args.path, parse_dates=[args.date_column], encoding='utf-8', )
-    resultDf, scaler = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
-    dfOther = pd.read_csv("Final/Energy_pv_lstm/data/power_value_sampling.csv", parse_dates=['updated'])
+    resultDf = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
+    print(resultDf.head(100))
+    print(resultDf.info())
 
+    resultDf.to_csv("Final/Energy_pv_lstm_test/data/pv_diff.csv")
 
     if args.state == "train" :
         x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)  # step
@@ -150,37 +150,25 @@ def main():
                      output_dim=args.output_dim,
                      num_layers=args.num_layers)
 
-        y_train_pred, y_train, model = Train(args, model, x_train, y_train, scaler)
+        y_train_pred, y_train, model = Train(args, model, x_train, y_train)
 
-        Visualize(y_train_pred, y_train, args.result_train, "train")
-
-        dfOther = dfOther.iloc[27:27+len(y_train)]
-        resultdf = pd.DataFrame({ "updated" : dfOther["updated"].values,
-                                  "TrainY_normX": dfOther["power_value"].values,
-                                 "TrainY_denorm": [*(y_train[:, -1].tolist())]})
+        resultdf = pd.DataFrame({"TrainY": [*(y_train[:, -1].tolist())],
+                                 "TrainPred": [*(y_train_pred[:, 0].tolist())]})
         print("train-train Pred")
         print(resultdf)
 
 
-        #
-        #
-        # resultdf = pd.DataFrame({"TrainY": [*(y_train[:, -1].tolist())],
-        #                          "TrainPred": [*(y_train_pred[:, 0].tolist())]})
-        # print("train-train Pred")
-        # print(resultdf)
-
-
+        Visualize(y_train_pred, y_train, args.result_train, "train")
     else :
         x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
         model = torch.load(args.model_save)
-        y_test_pred, y_test = Predict(args, model, x_test, y_test, scaler)
+        y_test_pred, y_test = Predict(args, model, x_test, y_test)
         Visualize(y_test_pred, y_test, args.result_pred, "test")
 
-        resultdf = pd.DataFrame({"TestY": [*(y_train[:, -1].tolist())],
-                                 "TestPred": [*(y_train_pred[:, 0].tolist())]})
+        resultdf = pd.DataFrame({"TestY": [*(y_test[:, -1].tolist())],
+                                 "TestPred": [*(y_test_pred[:, 0].tolist())]})
         print("test-test Pred")
         print(resultdf)
-
 
 
 if __name__ == '__main__':

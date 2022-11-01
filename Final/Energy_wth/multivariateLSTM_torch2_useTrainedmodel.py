@@ -35,7 +35,6 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
 
 
 # reading data frame ==================================================
-# df = pd.read_csv('./data/goldETF.csv')
 df = pd.read_csv('./data/result_pv_1031_2.csv')
 print(df.info())
 
@@ -45,8 +44,7 @@ for col in df.columns:
     df[col] = df_intp_linear[col]
 print(df.info())
 
-# in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning']
-in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning'] # target을 왜 feature로 넣어야 하나..?
+in_cols = ['power_value','temp_mean','temp_min','temp_max','weather_warning'] # target을 왜 feature로 넣어야 하나..?
 out_cols = ['power_value']  #예측 대상
 
 # choose a number of time steps

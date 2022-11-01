@@ -13,13 +13,13 @@ def lstm_parse(parser, arg_str=None):
                             num_layers = 2,
                             output_dim = 1,
                             lr = 0.01,
-                            num_epochs = 20,
+                            num_epochs = 2000,
 
-                            path = 'Final/Energy_pv_lstm/data/power_value.csv',
-                            model_save = 'Final/Energy_pv_lstm/model/lstm.pt',
-                            pred_result='Final/Energy_pv_lstm/output/lstm_predict.csv',
-                            result_train='Final/Energy_pv_lstm/output/lstm_train.png',
-                            result_pred='Final/Energy_pv_lstm/output/lstm_predict.png',
+                            path = 'Final/Energy_pv_lstm_test/data/power_value.csv',
+                            model_save = 'Final/Energy_pv_lstm_test/model/lstm.pt',
+                            pred_result='Final/Energy_pv_lstm_test/output/lstm_predict.csv',
+                            result_train='Final/Energy_pv_lstm_test/output/lstm_train.png',
+                            result_pred='Final/Energy_pv_lstm_test/output/lstm_predict.png',
                             )    # True
 
 #python -m Final.Energy_pv_lstm.Train
