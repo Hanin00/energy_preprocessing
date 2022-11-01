@@ -6,6 +6,7 @@ import math, time
 from math import sqrt
 import matplotlib
 import matplotlib.pyplot as plt
+import sklearn.metrics
 from matplotlib import font_manager, rc
 import numpy as np
 from numpy import array
@@ -23,6 +24,8 @@ from .MultivariateLSTM import LSTM
 import warnings
 warnings.filterwarnings(action="ignore")
 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 
 # 결측치 선형 보간, 900개 데이터에 대해 학습 후 남은 데이터에 대해 하루씩 예측 후 테스트 결과 확인, norm
 
@@ -68,7 +71,7 @@ def loadDataset(args) :
         scaler = MinMaxScaler(feature_range=(0, 1))
         df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
 
-
+    resultDf = df
     dataset_low = np.empty((df[out_cols[j]].values.shape[0], 0))
     for i in range(len(in_cols)):
         dataset_low = np.append(dataset_low, df[in_cols[i]].values.reshape(df[in_cols[i]].values.shape[0], 1), axis=1)
@@ -86,7 +89,7 @@ def loadDataset(args) :
     y_train = torch.from_numpy(y_train).type(torch.Tensor)
     y_test = torch.from_numpy(y_test).type(torch.Tensor)
 
-    return x_train, x_test, y_train, y_test, scaler, p_scaler
+    return x_train, x_test, y_train, y_test, scaler, p_scaler, resultDf
 
 def Train(args, model, x_train, y_train) :
     # for i in range(len(list(model.parameters()))):
@@ -159,6 +162,57 @@ def Visualize(y_pred, real, path, title) :
     # plt.show()
     plt.savefig(path)
 
+def F1scoreLevel( yTrue, yPred,) :
+
+    yTrue = sum(yTrue.tolist(), [])
+    yPred = sum(yPred.tolist(),[])
+
+    yDf = pd.DataFrame({"yTrue" : yTrue,
+                        "yPred" : yPred}).diff(axis=0, periods=1)
+    yDf.iloc[0] = 0
+
+    y25 = yDf["yTrue"].describe().iloc[4]
+    y50 = yDf["yTrue"].describe().iloc[5]
+    y75 = yDf["yTrue"].describe().iloc[6]
+
+    yTrueLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yTrue"].iloc[i] <= y25 :
+            yTrueLevel.append(0)
+        elif yDf["yTrue"].iloc[i] <= y50 :
+            yTrueLevel.append(1)
+        elif yDf["yTrue"].iloc[i] <= y75:
+            yTrueLevel.append(2)
+        else :
+            yTrueLevel.append(3)
+    yDf["yTrueLevel"] = yTrueLevel
+
+    yPredLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yPred"].iloc[i] <= y25 :
+            yPredLevel.append(0)
+        elif yDf["yPred"].iloc[i] <= y50 :
+            yPredLevel.append(1)
+        elif yDf["yPred"].iloc[i] <= y75:
+            yPredLevel.append(2)
+        else :
+            yPredLevel.append(3)
+
+    yDf["yPredLevel"] = yPredLevel
+
+    # yDf.to_csv("./data/yDf_f1.csv")
+
+    f1_y_true = yDf["yTrueLevel"].values.tolist()
+    f1_y_pred = yDf["yPredLevel"].values.tolist()
+
+    print("confusion_matrix")
+    print(confusion_matrix(f1_y_true, f1_y_pred, labels=[0, 1, 2, 3]))
+    print("f1score")
+    print(classification_report(f1_y_true, f1_y_pred))
+    f1score = classification_report(f1_y_true, f1_y_pred)
+
+    return f1score
+
 
 
 def main() :
@@ -166,7 +220,7 @@ def main() :
     lstm_parse(parser)
     args = parser.parse_args()
 
-    x_train, x_test, y_train, y_test, scaler, p_scaler = loadDataset(args)
+    x_train, x_test, y_train, y_test, scaler, p_scaler,resultDf = loadDataset(args)
 
     if args.state == "train" :
         model = LSTM(input_dim=args.input_dim,
@@ -178,20 +232,17 @@ def main() :
 
     elif args.state == "test" :
 
-        x_train, x_test, y_train, y_test, scaler, p_scaler = loadDataset(args)
+        x_train, x_test, y_train, y_test, scaler, p_scaler,resultDf = loadDataset(args)
         model = torch.load(args.model_save)
         y_test_pred, y_test, mseScore, rmseScore, R2Score  = Predict(args, model, x_test, y_test, scaler)
         Visualize(y_test_pred, y_test, args.result_pred, "test")
 
+
         y_test_pred = p_scaler.inverse_transform(y_test_pred)
         y_test = p_scaler.inverse_transform(y_test)
 
-        yDf = pd.DataFrame({"y_pred": y_test_pred[:, 0],
-                            "y_test": y_test[:, 0]
-                            })
-
-        with open(args.pred_result, 'w') as csv_file:
-            yDf[-30:].to_csv(path_or_buf=csv_file)
+        f1score = F1scoreLevel(y_test, y_test_pred)
+        print("f1score :", f1score)
 
 
     elif args.state == "iter" :
@@ -210,6 +261,9 @@ def main() :
 
         y_test_pred = p_scaler.inverse_transform(y_test_pred)
         y_test = p_scaler.inverse_transform(y_test)
+
+        f1score = F1scoreLevel(y_test, y_test_pred)
+        # print("f1score :", f1score)
 
         yDf = pd.DataFrame({"y_pred": y_test_pred[:, 0],
                             "y_test": y_test[:, 0]
@@ -231,7 +285,9 @@ def main() :
     else :
         # viewer
         print("모델에 사용되는 데이터")
-        print()
+        print(resultDf.info())
+        print(resultDf.head())
+        print(resultDf.tail())
         print("학습에 사용되는 데이터 : ", len(x_train))
         print("         x_train.shape - ", x_train.shape)
         print("테스트에 사용되는 데이터 : ", len(x_test))

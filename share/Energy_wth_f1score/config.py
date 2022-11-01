@@ -14,7 +14,7 @@ def lstm_parse(parser, arg_str=None):
         hidden_dim=32,
         num_layers=5, #hidden layer num
         output_dim=1,
-        num_epochs=2000,
+        num_epochs=20,
         lr=0.01,
 
         n_steps_in = 30, #예측에 사용되는 이전 데이터 수

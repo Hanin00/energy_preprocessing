@@ -3,6 +3,7 @@
 import sys
 
 import numpy as np
+import sklearn.metrics
 from numpy import array
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,6 +13,8 @@ from sklearn.metrics import mean_squared_error
 import torch
 import torch.nn as nn
 from sklearn.metrics import r2_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 
 # 결측치 선형 보간, 900개 데이터에 대해 학습 후 남은 데이터에 대해 하루씩 예측 후 테스트 결과 확인, norm
 
@@ -33,8 +36,8 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
 
 
 # reading data frame ==================================================
-# df = pd.read_csv('./data/goldETF.csv')
-df = pd.read_csv('./data/result_pv_1031_2.csv')
+
+df = pd.read_csv('./data/pv_weather.csv')
 print(df.info())
 
 #결측치 보간
@@ -49,7 +52,6 @@ out_cols = ['power_value']  #예측 대상
 
 # choose a number of time steps
 n_steps_in, n_steps_out = 30, 1 # 이전 30일 보고 하루 예측
-# n_steps_in, n_steps_out = 30, 7 # 이전 30일 보고 7일 예측
 
 # ==============================================================================
 # Preparing Model for 'Low'=======================================================
@@ -89,7 +91,7 @@ input_dim = 5 # feature 개수 - power value 까지
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
-num_epochs = 200
+num_epochs = 2000
 
 
 # Here we define our model as a class
@@ -122,87 +124,151 @@ model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, 
 
 loss_fn = torch.nn.MSELoss(size_average=True)
 
-optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+# optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
 # print(model)
 # print(len(list(model.parameters())))
-
-
-
-for i in range(len(list(model.parameters()))):
-    print(list(model.parameters())[i].size())
+#
+# for i in range(len(list(model.parameters()))):
+#     print(list(model.parameters())[i].size())
 
 # Train model
 ##################################################################
 
 hist = np.zeros(num_epochs)
+#
+# for t in range(num_epochs):
+#     # Initialise hidden state
+#     # Forward pass
+#     y_train_pred = model(x_train)
+#     loss = loss_fn(y_train_pred, y_train)
+#
+#     if t % 10 == 0 and t != 0:
+#         print("Epoch ", t, "MSE: ", loss.item())
+#     hist[t] = loss.item()
+#
+#     # Zero out gradient, else they will accumulate between epochs
+#     optimiser.zero_grad()
+#
+#     # Backward pass
+#     loss.backward()
+#
+#     # Update parameters
+#     optimiser.step()
 
-for t in range(num_epochs):
-    # Initialise hidden state
-    # Forward pass
-    y_train_pred = model(x_train)
-    loss = loss_fn(y_train_pred, y_train)
 
-    if t % 10 == 0 and t != 0:
-        print("Epoch ", t, "MSE: ", loss.item())
-    hist[t] = loss.item()
-
-    # Zero out gradient, else they will accumulate between epochs
-    optimiser.zero_grad()
-
-    # Backward pass
-    loss.backward()
-
-    # Update parameters
-    optimiser.step()
-
-
-# model = torch.load("./model/multi_torch2.pt")
+model = torch.load("./model/model_e2000_good.pt")
 
 # make predictions
 y_test_pred = model(x_test)
-# torch.save(model, "./model/model_e2000.pt")
 
 
-print("MSE loss---------")
-trainScore = loss_fn(y_train, y_train_pred)
-print('Train MSE Score: %.8f' % (trainScore))
-testScore = loss_fn(y_test, y_test_pred)
-print('Test MSE Score: %.8f' % (testScore))
+def F1scoreLevel( yTrue, yPred,) :
 
-print("RMSE loss--------")
-trainScore = math.sqrt(loss_fn(y_train, y_train_pred))
-print('Train RMSE Score: %.8f' % (trainScore))
-testScore = math.sqrt(loss_fn(y_test, y_test_pred))
-print('Test RMSE Score: %.8f' % (testScore))
+    yTrue = sum(yTrue.tolist(), [])
+    yPred = sum(yPred.tolist(),[])
 
-print("R2 Score--------")
-trainScore = r2_score(y_train.detach().numpy(), y_train_pred.detach().numpy())
-print('Train R2 Score: %.8f' % (trainScore))
-testScore = r2_score(y_test.detach().numpy(), y_test_pred.detach().numpy())
-print('Test R2 Score: %.8f' % (testScore))
+    yDf = pd.DataFrame({"yTrue" : yTrue,
+                        "yPred" : yPred}).diff(axis=0, periods=1)
+    yDf.iloc[0] = 0
+
+    yTmax = yDf["yTrue"].max()
+    yTmin = yDf["yTrue"].min()
+
+    print(type(yTmax))
+    print(yTmax)
+    print(yTmin)
+
+    y25 = yDf["yTrue"].describe().iloc[4]
+    y50 = yDf["yTrue"].describe().iloc[5]
+    y75 = yDf["yTrue"].describe().iloc[6]
+
+    yTrueLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yTrue"].iloc[i] <= y25 :
+            yTrueLevel.append(0)
+        elif yDf["yTrue"].iloc[i] <= y50 :
+            yTrueLevel.append(1)
+        elif yDf["yTrue"].iloc[i] <= y75:
+            yTrueLevel.append(2)
+        else :
+            yTrueLevel.append(3)
+    yDf["yTrueLevel"] = yTrueLevel
 
 
-plt.clf()
-plt.plot(y_train_pred.detach().numpy(), label="Preds")
-plt.plot(y_train.detach().numpy(), label="Data")
-plt.legend()
-plt.savefig("./output/normPv-train.png")
-# plt.show()
+    yPredLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yPred"].iloc[i] <= y25 :
+            yPredLevel.append(0)
+        elif yDf["yPred"].iloc[i] <= y50 :
+            yPredLevel.append(1)
+        elif yDf["yPred"].iloc[i] <= y75:
+            yPredLevel.append(2)
+        else :
+            yPredLevel.append(3)
+    yDf["yPredLevel"] = yPredLevel
 
-plt.clf()
-plt.plot(hist, label="Training loss")
-plt.legend()
-plt.savefig("./output/normPv-training_loss.png")
-# plt.show()
+    return yDf
+
+yDf = F1scoreLevel(y_test, y_test_pred)
+yDf.to_csv("./data/yDf_f1.csv")
+
+f1_y_true = yDf["yTrueLevel"].values.tolist()
+f1_y_pred = yDf["yPredLevel"].values.tolist()
+
+print(confusion_matrix(f1_y_true, f1_y_pred, labels=[0,1,2,3]))
+print(classification_report(f1_y_true, f1_y_pred))
+
+
+sys.exit()
 
 
 
-plt.clf()
-plt.plot()
-plt.plot(y_test_pred.detach().numpy(), label="Preds")
-plt.plot(y_test.detach().numpy(), label="Data")
-plt.legend()
-plt.savefig("./output/normPv-pred.png")
-# plt.show()
+
+
+#
+# # torch.save(model, "./model/model_e2000.pt")
+#
+#
+# print("MSE loss---------")
+# trainScore = loss_fn(y_train, y_train_pred)
+# print('Train MSE Score: %.8f' % (trainScore))
+# testScore = loss_fn(y_test, y_test_pred)
+# print('Test MSE Score: %.8f' % (testScore))
+#
+# print("RMSE loss--------")
+# trainScore = math.sqrt(loss_fn(y_train, y_train_pred))
+# print('Train RMSE Score: %.8f' % (trainScore))
+# testScore = math.sqrt(loss_fn(y_test, y_test_pred))
+# print('Test RMSE Score: %.8f' % (testScore))
+#
+# print("R2 Score--------")
+# trainScore = r2_score(y_train.detach().numpy(), y_train_pred.detach().numpy())
+# print('Train R2 Score: %.8f' % (trainScore))
+# testScore = r2_score(y_test.detach().numpy(), y_test_pred.detach().numpy())
+# print('Test R2 Score: %.8f' % (testScore))
+#
+#
+# plt.clf()
+# plt.plot(y_train_pred.detach().numpy(), label="Preds")
+# plt.plot(y_train.detach().numpy(), label="Data")
+# plt.legend()
+# plt.savefig("./output/normPv-train.png")
+# # plt.show()
+#
+# plt.clf()
+# plt.plot(hist, label="Training loss")
+# plt.legend()
+# plt.savefig("./output/normPv-training_loss.png")
+# # plt.show()
+#
+#
+#
+# plt.clf()
+# plt.plot()
+# plt.plot(y_test_pred.detach().numpy(), label="Preds")
+# plt.plot(y_test.detach().numpy(), label="Data")
+# plt.legend()
+# plt.savefig("./output/normPv-pred.png")
+# # plt.show()
 
 

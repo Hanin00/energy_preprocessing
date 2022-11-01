@@ -12,6 +12,10 @@ from sklearn.metrics import mean_squared_error
 import torch
 import torch.nn as nn
 from sklearn.metrics import r2_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+
+
 
 # 결측치 선형 보간, 900개 데이터에 대해 학습 후 남은 데이터에 대해 하루씩 예측 후 테스트 결과 확인, norm
 
@@ -33,8 +37,8 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
 
 
 # reading data frame ==================================================
-# df = pd.read_csv('./data/goldETF.csv')
-df = pd.read_csv('./data/result_pv_1031_2.csv')
+
+df = pd.read_csv('./data/pv_weather.csv')
 print(df.info())
 
 #결측치 보간
@@ -89,7 +93,7 @@ input_dim = 5 # feature 개수 - power value 까지
 hidden_dim = 32
 num_layers = 2
 output_dim = 1
-num_epochs = 200
+num_epochs = 2000
 
 
 # Here we define our model as a class
@@ -116,6 +120,56 @@ class LSTM(nn.Module):
 
         out = self.fc(out[:, -1, :])
         return out
+
+
+def F1scoreLevel( yTrue, yPred,) :
+
+    yTrue = sum(yTrue.tolist(), [])
+    yPred = sum(yPred.tolist(),[])
+
+    yDf = pd.DataFrame({"yTrue" : yTrue,
+                        "yPred" : yPred}).diff(axis=0, periods=1)
+    yDf.iloc[0] = 0
+
+    yTmax = yDf["yTrue"].max()
+    yTmin = yDf["yTrue"].min()
+
+    print(type(yTmax))
+    print(yTmax)
+    print(yTmin)
+
+    y25 = yDf["yTrue"].describe().iloc[4]
+    y50 = yDf["yTrue"].describe().iloc[5]
+    y75 = yDf["yTrue"].describe().iloc[6]
+
+    yTrueLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yTrue"].iloc[i] <= y25 :
+            yTrueLevel.append(0)
+        elif yDf["yTrue"].iloc[i] <= y50 :
+            yTrueLevel.append(1)
+        elif yDf["yTrue"].iloc[i] <= y75:
+            yTrueLevel.append(2)
+        else :
+            yTrueLevel.append(3)
+    yDf["yTrueLevel"] = yTrueLevel
+
+
+    yPredLevel = []
+    for i in range(len(yDf)) :
+        if yDf["yPred"].iloc[i] <= y25 :
+            yPredLevel.append(0)
+        elif yDf["yPred"].iloc[i] <= y50 :
+            yPredLevel.append(1)
+        elif yDf["yPred"].iloc[i] <= y75:
+            yPredLevel.append(2)
+        else :
+            yPredLevel.append(3)
+    yDf["yPredLevel"] = yPredLevel
+
+    print(yDf)
+
+    return yDf
 
 
 model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
@@ -156,11 +210,23 @@ for t in range(num_epochs):
     optimiser.step()
 
 
-# model = torch.load("./model/multi_torch2.pt")
+model = torch.load("./model/model_e2000.pt")
 
 # make predictions
 y_test_pred = model(x_test)
 # torch.save(model, "./model/model_e2000.pt")
+
+
+yDf = F1scoreLevel(y_test, y_test_pred)
+yDf.to_csv("./data/yDf_f1.csv")
+
+f1_y_true = yDf["yTrueLevel"].values.tolist()
+f1_y_pred = yDf["yPredLevel"].values.tolist()
+
+print(confusion_matrix(f1_y_true, f1_y_pred, labels=[0,1,2,3]))
+print(classification_report(f1_y_true, f1_y_pred))
+
+
 
 
 print("MSE loss---------")

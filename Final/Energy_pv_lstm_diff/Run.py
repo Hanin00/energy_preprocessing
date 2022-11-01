@@ -152,6 +152,18 @@ def main():
     pd.set_option('display.max_columns', None)
     df1D = pd.read_csv(args.path, parse_dates=[args.date_column], encoding='utf-8', )
     resultDf = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
+
+
+    print(resultDf.describe())
+
+    sys.exit()
+
+
+
+
+
+
+
     x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
 
     if args.state == "train" :

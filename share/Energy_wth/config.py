@@ -22,11 +22,11 @@ def lstm_parse(parser, arg_str=None):
 
         train_set_size = 900,
 
-        path='Energy_wth/data/pv_weather.csv',
-        model_save='Energy_wth/model/model_e2000.pt',
-        pred_result='Energy_wth/output/lstm_predict.csv',
-        result_train='Energy_wth/output/lstm_train.png',
-        result_pred='Energy_wth/output/lstm_predict.png',
+        path='Energy_wth_f1score/data/pv_weather.csv',
+        model_save='Energy_wth_f1score/model/model_e2000_.pt',
+        pred_result='Energy_wth_f1score/output/lstm_predict.csv',
+        result_train='Energy_wth_f1score/output/lstm_train.png',
+        result_pred='Energy_wth_f1score/output/lstm_predict.png',
     )  # True
 
 # python -m Final.Energy_pv.Train
