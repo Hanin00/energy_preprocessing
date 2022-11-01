@@ -15,11 +15,11 @@ def lstm_parse(parser, arg_str=None):
                             lr = 0.01,
                             num_epochs = 2000,
 
-                            path = 'Final/Energy_pv_lstm_diff/data/power_value.csv',
-                            model_save = 'Final/Energy_pv_lstm_diff/model/model_e2000.pt',
-                            pred_result='Final/Energy_pv_lstm_diff/output/lstm_predict.csv',
-                            result_train='Final/Energy_pv_lstm_diff/output/lstm_train.png',
-                            result_pred='Final/Energy_pv_lstm_diff/output/lstm_predict.png',
+                            path = 'Final/Energy_pv_lstm_diff_norm/data/power_value.csv',
+                            model_save = 'Final/Energy_pv_lstm_diff_norm/model/model_e2000.pt',
+                            pred_result='Final/Energy_pv_lstm_diff_norm/output/lstm_predict.csv',
+                            result_train='Final/Energy_pv_lstm_diff_norm/output/lstm_train.png',
+                            result_pred='Final/Energy_pv_lstm_diff_norm/output/lstm_predict.png',
                             )    # True
 
 #python -m Final.Energy_pv.Train

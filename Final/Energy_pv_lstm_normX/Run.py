@@ -82,7 +82,7 @@ def Train(args,model, x_train, y_train) :
     # y_train = scaler.inverse_transform(y_train.detach().numpy())
     # trainScore = math.sqrt(mean_squared_error(y_train[:, 0], y_train_pred[:, 0]))
     trainScore = math.sqrt(mean_squared_error(y_train[:, 0].detach().numpy(), y_train_pred[:, 0].detach().numpy()))
-    print('Train Score: %.2f RMSE' % (trainScore))
+    print('Train Score: %.10f RMSE' % (trainScore))
 
     torch.save(model,  args.model_save)
     return y_train_pred, y_train,model
@@ -91,20 +91,28 @@ def Train(args,model, x_train, y_train) :
 def Predict( args,model, x_test, y_test ) :
     y_test_pred = model(x_test)
     # invert predictions
+    loss_fn = torch.nn.MSELoss()
 
-    trainScore = mean_squared_error(y_test.detach().numpy(),y_test_pred.detach().numpy())
-    print('Train Score: %.10f MSE' % (trainScore))
+    trainScore = loss_fn(y_test,y_test_pred)
+    print('Test MSE Score: %.10f MSE' % (trainScore))
 
 
-    testScore = math.sqrt(mean_squared_error(y_test[:, 0], y_test_pred[:, 0]))
-    print('Test Score: %.2f RMSE' % (testScore))
+    testScore = math.sqrt(loss_fn(y_test,y_test_pred))
+    print('Test RMSE Score: %.2f RMSE' % (testScore))
 
-    yDf = pd.DataFrame({"y_pred" :y_test_pred[:,0],
-                        "y_test" : y_test[:,0]
-                        })
 
-    with open(args.pred_result, 'w') as csv_file:
-        yDf[-30 : ].to_csv(path_or_buf=csv_file)
+    resultdf = pd.DataFrame({"TestY": [*(y_test[:, -1].tolist())],
+                             "TestPred": [*(y_test_pred[:, 0].tolist())]})
+    print("test-test Pred")
+    print(resultdf)
+    #
+    #
+    # yDf = pd.DataFrame({"y_pred" :y_test_pred[:,0],
+    #                     "y_test" : y_test[:,0]
+    #                     })
+    #
+    # with open(args.pred_result, 'w') as csv_file:
+    #     yDf[-30 : ].to_csv(path_or_buf=csv_file)
 
     return y_test_pred, y_test
 
@@ -135,9 +143,10 @@ def main():
     df1D = pd.read_csv(args.path, parse_dates=[args.date_column], encoding='utf-8', )
     resultDf = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
+    x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
 
     if args.state == "train" :
-        x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)  # step
+
 
         model = LSTM(input_dim=args.input_dim,
                      hidden_dim=args.hidden_dim,
@@ -155,13 +164,13 @@ def main():
         print(resultdf)
 
     else :
-        x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
+
         model = torch.load(args.model_save)
         y_test_pred, y_test = Predict(args, model, x_test, y_test)
         Visualize(y_test_pred.detach().numpy(), y_test.detach().numpy(), args.result_pred, "test")
 
-        resultdf = pd.DataFrame({"TestY": [*(y_train[:, -1].tolist())],
-                                 "TestPred": [*(y_train_pred[:, 0].tolist())]})
+        resultdf = pd.DataFrame({"TestY": [*(y_test.tolist())],
+                                 "TestPred": [*(y_test_pred.tolist())]})
         print("test-test Pred")
         print(resultdf)
 

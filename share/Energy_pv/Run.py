@@ -1,27 +1,27 @@
 import sys
 import argparse
 import pandas as pd
+import math, time
+from math import sqrt
 import matplotlib
 import matplotlib.pyplot as plt
-from .config import lstm_parse
 from matplotlib import font_manager, rc
-from .LSTMModel import LSTM
-
 import numpy as np
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
-
-import math, time
-from math import sqrt
-
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-
 from sklearn.metrics import r2_score
 
-#norm O, 누적값
+from .LSTMModel import LSTM
+from .config import lstm_parse
 
+import warnings
+warnings.filterwarnings(action="ignore")
+
+
+#norm O, 누적값 사용
 
 # 10T data -> 1D data resampling & 선형 보간
 def resampleFreq(args, df) :
@@ -29,7 +29,6 @@ def resampleFreq(args, df) :
     resultDf = df.resample(args.freq).last()
     df_intp_linear = resultDf.interpolate()
     resultDf[args.target_name] = df_intp_linear[args.target_name]
-    resultDf.to_csv("Final/Energy_pv/data/power_value_sampling.csv")
     scaler = MinMaxScaler()
     resultDf[args.target_name] = scaler.fit_transform(resultDf[args.target_name].values.reshape(-1, 1))
     return resultDf, scaler
@@ -41,7 +40,6 @@ def load_data(stock, look_back):
     # create all possible sequences of length look_back
     for index in range(len(data_raw) - look_back):
         data.append(data_raw[index: index + look_back])
-
 
     data = np.array(data)
     test_set_size = int(np.round(0.2 * data.shape[0]))  # 220
@@ -58,18 +56,14 @@ def load_data(stock, look_back):
     y_train = torch.from_numpy(y_train).type(torch.Tensor)
     y_test = torch.from_numpy(y_test).type(torch.Tensor)
 
-    return [x_train, y_train, x_test, y_test]
+    return x_train, y_train, x_test, y_test
 
-
-
-def Train(args,model, x_train, y_train,scaler) :
+def Train(args,model, x_train, y_train, scaler) :
     loss_fn = torch.nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
     hist = np.zeros(args.num_epochs)
 
     for t in range(args.num_epochs):
-        # model.hidden = model.init_hidden()
-        # Forward pass
         y_train_pred = model(x_train)
         loss = loss_fn(y_train_pred, y_train)
         if t % 10 == 0 and t != 0:
@@ -79,50 +73,43 @@ def Train(args,model, x_train, y_train,scaler) :
         loss.backward()
         optimiser.step()
 
-    # y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
-    # y_train = scaler.inverse_transform(y_train.detach().numpy())
-    trainScore = mean_squared_error(y_train.detach().numpy(),y_train_pred.detach().numpy())
-    print('Train Score: %.10f MSE' % (trainScore))
+    torch.save(model,  args.model_save)
+
+    mseScore = loss_fn(y_train, y_train_pred)
+    rmseScore = math.sqrt(loss_fn(y_train, y_train_pred))
+    R2Score = r2_score(y_train.detach().numpy(), y_train_pred.detach().numpy())
+
+    print('Train MSE Score: %.8f' % (mseScore))
+    print('Train RMSE Score: %.8f' % (rmseScore))
+    print('Train R2 Score: %.8f' % (R2Score))
 
     y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
     y_train = scaler.inverse_transform(y_train.detach().numpy())
-    trainScore = math.sqrt(mean_squared_error(y_train[:, 0], y_train_pred[:, 0]))
-    print('Train Score: %.2f RMSE' % (trainScore))
 
-
-    R2Score = r2_score(y_train, y_train_pred)
-    print('Train R2 Score : %.10f' %(R2Score))
-
-    torch.save(model,  args.model_save)
-    return y_train_pred, y_train,model
+    return model, y_train, y_train_pred
 
 def Predict( args,model, x_test, y_test, scaler ) :
-    y_test_pred = model(x_test)
-    # invert predictions
+    loss_fn = torch.nn.MSELoss(size_average=True)
 
-    trainScore = mean_squared_error(y_test.detach().numpy(),y_test_pred.detach().numpy())
-    print('Test Score: %.10f MSE' % (trainScore))
+    y_test_pred = model(x_test)
+    mseScore = loss_fn(y_test, y_test_pred)
+    rmseScore = math.sqrt(loss_fn(y_test, y_test_pred))
+    R2Score = r2_score(y_test.detach().numpy(), y_test_pred.detach().numpy())
+
+    print('Test MSE Score: %.8f' % (mseScore))
+    print('Test RMSE Score: %.8f' % (rmseScore))
+    print('Test R2 Score: %.8f' % (R2Score))
 
     y_test_pred = scaler.inverse_transform(y_test_pred.detach().numpy())
     y_test = scaler.inverse_transform(y_test.detach().numpy())
 
-    testScore = math.sqrt(mean_squared_error(y_test[:, 0], y_test_pred[:, 0]))
-    print('Test Score: %.2f RMSE' % (testScore))
-
-
-    R2Score = r2_score(y_test, y_test_pred)
-    print('Test R2 Score : %.10f' %(R2Score))
-
-    yDf = pd.DataFrame({"y_pred" :y_test_pred[:,0],
-                        "y_test" : y_test[:,0]
-                        })
+    yDf = pd.DataFrame({"y_pred": y_test_pred[:, 0],
+                        "y_test": y_test[:, 0]})
 
     with open(args.pred_result, 'w') as csv_file:
-        yDf[-30 : ].to_csv(path_or_buf=csv_file)
+        yDf.to_csv(path_or_buf=csv_file)
 
-    return y_test_pred, y_test
-
-
+    return y_test_pred, y_test, mseScore, rmseScore, R2Score
 
 def Visualize(y_pred, real, path, title) :
     plt.gca()
@@ -139,52 +126,68 @@ def Visualize(y_pred, real, path, title) :
     # plt.show()
     plt.savefig(path)
 
-
 def main():
-
     parser = argparse.ArgumentParser(description='Embedding arguments')
     lstm_parse(parser)
     args = parser.parse_args()
 
     pd.set_option('display.max_columns', None)
+
     df1D = pd.read_csv(args.path, parse_dates=[args.date_column], encoding='utf-8', )
     resultDf, scaler = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
-    dfOther = pd.read_csv("Final/Energy_pv/data/power_value_sampling.csv", parse_dates=['updated'])
-
-
+    x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)  # step
 
     if args.state == "train" :
-        x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)  # step
 
         model = LSTM(input_dim=args.input_dim,
                      hidden_dim=args.hidden_dim,
                      output_dim=args.output_dim,
                      num_layers=args.num_layers)
 
-        y_train_pred, y_train, model = Train(args, model, x_train, y_train, scaler)
-
+        model, y_train, y_train_pred  = Train(args, model, x_train, y_train, scaler)
         Visualize(y_train_pred, y_train, args.result_train, "train")
 
-        dfOther = dfOther.iloc[27:27+len(y_train)]
-        resultdf = pd.DataFrame({ "updated" : dfOther["updated"].values,
-                                  "TrainY_normX": dfOther["power_value"].values,
-                                 "TrainY_denorm": [*(y_train[:, -1].tolist())]})
-        print("train-train Pred")
-        print(resultdf)
-
-
-
-    else :
+    elif args.state == "test" :
         x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
         model = torch.load(args.model_save)
-        y_test_pred, y_test = Predict(args, model, x_test, y_test, scaler)
+        y_test_pred, y_test, mseScore, rmseScore, R2Score = Predict(args, model, x_test, y_test, scaler)
         Visualize(y_test_pred, y_test, args.result_pred, "test")
 
-        resultdf = pd.DataFrame({"TestY": [*(y_test[:, -1].tolist())],
-                                 "TestPred": [*(y_test_pred[:, 0].tolist())]})
-        print("test-test Pred")
-        print(resultdf)
+    elif args.state == "iter" :
+        mseL = []
+        rmseL = []
+        r2L = []
+        model = torch.load(args.model_save)
+        for i in range(args.iternum) :
+            y_test_pred, _, mseScore, rmseScore, R2Score = Predict(args, model, x_test, y_test, scaler)
+            mseL.append(float(mseScore.detach().numpy()))
+            rmseL.append(rmseScore)
+            r2L.append(R2Score)
+
+        scoreDf = pd.DataFrame({ "MSE" : mseL,
+                                "RMSE" : rmseL,
+                                "R2 Score": r2L })
+
+
+        print("test ",args.iternum,"번에 대한 평균값 : " )
+        print(scoreDf.describe().iloc[1])
+
+        print(scoreDf.describe())
+
+    else :
+        # viewer
+        print("모델에 사용되는 데이터")
+        print(resultDf.info())
+        print(resultDf.head())
+        print(resultDf.tail())
+        print("학습에 사용되는 데이터 : ", len(x_train))
+        print("         x_train.shape - ", x_train.shape)
+        print("테스트에 사용되는 데이터 : ", len(x_test))
+        print("         x_test.shape - ", x_test.shape)
+
+        print("모델 구조")
+
 
 
 

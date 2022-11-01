@@ -3,6 +3,7 @@ import argparse
 def lstm_parse(parser, arg_str=None):
     enc_parser = parser.add_argument_group()
     enc_parser.add_argument('--state', required=False, default = "train" ,)
+    enc_parser.add_argument('--iternum', required=False, default=10, )
     enc_parser.set_defaults(
                             date_column = 'updated',
                             freq = '1D',
@@ -15,11 +16,11 @@ def lstm_parse(parser, arg_str=None):
                             lr = 0.01,
                             num_epochs = 2000,
 
-                            path = 'Final/Energy_pv_lstm_diff/data/power_value.csv',
-                            model_save = 'Final/Energy_pv_lstm_diff/model/model_e2000.pt',
-                            pred_result='Final/Energy_pv_lstm_diff/output/lstm_predict.csv',
-                            result_train='Final/Energy_pv_lstm_diff/output/lstm_train.png',
-                            result_pred='Final/Energy_pv_lstm_diff/output/lstm_predict.png',
+                            path = 'Energy_pv/data/power_value.csv',
+                            model_save = 'Energy_pv/model/model_e2000.pt',
+                            pred_result='Energy_pv/output/lstm_predict.csv',
+                            result_train='Energy_pv/output/lstm_train.png',
+                            result_pred='Energy_pv/output/lstm_predict.png',
                             )    # True
 
 #python -m Final.Energy_pv.Train

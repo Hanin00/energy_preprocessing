@@ -1,3 +1,5 @@
+#ref) https://github.com/kianData/PyTorch-Multivariate-LSTM
+
 # -*- coding: utf-8 -*-
 
 import sys
@@ -13,7 +15,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import r2_score
 
-# 결측치 선형 보간, 900개 데이터에 대해 학습 후 남은 데이터에 대해 하루씩 예측 후 테스트 결과 확인, norm
+# 결측치 선형 보간, 900개 데이터에 대해 학습 후 남은 데이터에 대해 하루씩 예측 후 테스트 결과 확인
 
 # split a multivariate sequence into samples
 def split_sequences(sequences, n_steps_in, n_steps_out):
@@ -43,6 +45,16 @@ for col in df.columns:
     df[col] = df_intp_linear[col]
 print(df.info())
 
+diffDf =  df['power_value'].copy()
+
+diffDf = diffDf.diff( periods=1)
+diffDf.iloc[0] = 0
+df['power_value'] = diffDf
+
+
+# df['power_value'] = df['power_value'].diff(axis=0, periods=1)
+# df['power_value'].iloc[0] = 0
+
 # in_cols = ['power_value','temp_mean','temp_min','temp_max','humidity_value_avg','humidity_value_min','weather_warning']
 in_cols = ['power_value','temp_mean','temp_min','temp_max','weather_warning']
 out_cols = ['power_value']  #예측 대상
@@ -68,11 +80,15 @@ dataset_low = np.append(dataset_low, df[out_cols[j]].values.reshape(df[out_cols[
 scaled_data = dataset_low
 
 # convert into input/output
+# x_train, y_train = split_sequences(scaled_data, n_steps_in, n_steps_out)
+# train_set_size = int(0.2 * scaled_data.shape[0])
+# x_test, y_test = split_sequences(scaled_data[-train_set_size:-1, :], n_steps_in, n_steps_out)
 train_set_size = 900
 x_train, y_train = split_sequences(scaled_data[:train_set_size], n_steps_in, n_steps_out)
 # train_set_size = int(0.2 * scaled_data.shape[0])
 
 x_test, y_test = split_sequences(scaled_data[train_set_size:-1, :], n_steps_in, n_steps_out)
+
 
 # make training and test sets in torch
 x_train = torch.from_numpy(x_train).type(torch.Tensor)
@@ -117,92 +133,95 @@ class LSTM(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
+#
+# model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+#
+# loss_fn = torch.nn.MSELoss(size_average=True)
+#
+# optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
+# # print(model)
+# # print(len(list(model.parameters())))
+#
+#
+#
+# for i in range(len(list(model.parameters()))):
+#     print(list(model.parameters())[i].size())
+#
+# # Train model
+# ##################################################################
+#
+# hist = np.zeros(num_epochs)
+#
+# for t in range(num_epochs):
+#     # Initialise hidden state
+#     # Forward pass
+#     y_train_pred = model(x_train)
+#     loss = loss_fn(y_train_pred, y_train)
+#
+#     if t % 10 == 0 and t != 0:
+#         print("Epoch ", t, "MSE: ", loss.item())
+#     hist[t] = loss.item()
+#
+#     # Zero out gradient, else they will accumulate between epochs
+#     optimiser.zero_grad()
+#
+#     # Backward pass
+#     loss.backward()
+#
+#     # Update parameters
+#     optimiser.step()
+#
+#
+#
+# torch.save(model, "./model/model_e2000.pt")
+#
 
-model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-
-loss_fn = torch.nn.MSELoss(size_average=True)
-
-optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
-# print(model)
-# print(len(list(model.parameters())))
-
-
-
-for i in range(len(list(model.parameters()))):
-    print(list(model.parameters())[i].size())
-
-# Train model
-##################################################################
-
-hist = np.zeros(num_epochs)
-
-for t in range(num_epochs):
-    # Initialise hidden state
-    # Forward pass
-    y_train_pred = model(x_train)
-    loss = loss_fn(y_train_pred, y_train)
-
-    if t % 10 == 0 and t != 0:
-        print("Epoch ", t, "MSE: ", loss.item())
-    hist[t] = loss.item()
-
-    # Zero out gradient, else they will accumulate between epochs
-    optimiser.zero_grad()
-
-    # Backward pass
-    loss.backward()
-
-    # Update parameters
-    optimiser.step()
 
 
 model = torch.load("./model/model_e2000.pt")
-
 # make predictions
 y_test_pred = model(x_test)
-# torch.save(model, "./model/model_e2000.pt")
-
+loss_fn = nn.MSELoss()
 
 print("MSE loss---------")
-trainScore = loss_fn(y_train, y_train_pred)
-print('Train MSE Score: %.8f' % (trainScore))
+# trainScore = loss_fn(y_train, y_train_pred)
+# print('Train MSE Score: %.8f' % (trainScore))
 testScore = loss_fn(y_test, y_test_pred)
 print('Test MSE Score: %.8f' % (testScore))
 
 print("RMSE loss--------")
-trainScore = math.sqrt(loss_fn(y_train, y_train_pred))
-print('Train RMSE Score: %.8f' % (trainScore))
+# trainScore = math.sqrt(loss_fn(y_train, y_train_pred))
+# print('Train RMSE Score: %.8f' % (trainScore))
 testScore = math.sqrt(loss_fn(y_test, y_test_pred))
 print('Test RMSE Score: %.8f' % (testScore))
 
 print("R2 Score--------")
-trainScore = r2_score(y_train.detach().numpy(), y_train_pred.detach().numpy())
-print('Train R2 Score: %.8f' % (trainScore))
-testScore = r2_score(y_test.detach().numpy(), y_test_pred.detach().numpy())
+# trainScore = r2_score(y_train.detach().numpy(), y_train_pred.detach().numpy())
+# print('Train R2 Score: %.8f' % (trainScore))
+testScore = r2_score(y_test.detach().numpy().tolist(), y_test_pred.detach().numpy().tolist())
 print('Test R2 Score: %.8f' % (testScore))
 
-
-plt.clf()
-plt.plot(y_train_pred.detach().numpy(), label="Preds")
-plt.plot(y_train.detach().numpy(), label="Data")
-plt.legend()
-plt.savefig("./output/normPv-train.png")
-# plt.show()
-
-plt.clf()
-plt.plot(hist, label="Training loss")
-plt.legend()
-plt.savefig("./output/normPv-training_loss.png")
-# plt.show()
-
-
-
-plt.clf()
-plt.plot()
-plt.plot(y_test_pred.detach().numpy(), label="Preds")
-plt.plot(y_test.detach().numpy(), label="Data")
-plt.legend()
-plt.savefig("./output/normPv-pred.png")
-# plt.show()
+#
+#
+# plt.clf()
+# plt.plot(y_train_pred.detach().numpy(), label="Preds")
+# plt.plot(y_train.detach().numpy(), label="Data")
+# plt.legend()
+# plt.savefig("./output/normPv-train-diff.png")
+# # plt.show()
+#
+#
+# plt.clf()
+# plt.plot(hist, label="Training loss")
+# plt.legend()
+# plt.savefig("./output/normPv-training-diff_loss.png")
+# # plt.show()
+#
+# plt.clf()
+# plt.plot(y_test_pred.detach().numpy(), label="Preds")
+# plt.plot(y_test.detach().numpy(), label="Data")
+# plt.legend()
+# plt.savefig("./output/normPv-pred-diff.png")
+# # plt.show()
 
 
