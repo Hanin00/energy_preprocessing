@@ -33,19 +33,21 @@ def resampleFreq(args, df) :
     resultDf[args.target_name] = scaler.fit_transform(resultDf[args.target_name].values.reshape(-1, 1))
     return resultDf, scaler
 
-def load_data(stock, look_back):
+def load_data(stock, args):
     data_raw = stock.values  # convert to numpy array
     data = []
 
     # create all possible sequences of length look_back
-    for index in range(len(data_raw) - look_back):
-        data.append(data_raw[index: index + look_back])
+    for index in range(len(data_raw) - args.look_back):
+        data.append(data_raw[index: index + args.look_back])
 
     data = np.array(data)
-    test_set_size = int(np.round(0.2 * data.shape[0]))  # 220
-    train_set_size = data.shape[0] - (test_set_size)  # 881
 
-    x_train = data[:train_set_size, :-1, :]  # (757, 27, 1) 이전 7일까지의 값을 사용하니까
+    # test_set_size = int(np.round(0.2 * data.shape[0]))
+    # train_set_size = data.shape[0] - (test_set_size)  # 881
+    train_set_size = args.train_set_size
+
+    x_train = data[:train_set_size, :-1, :]  #
     y_train = data[:train_set_size, -1, :]  # (757, 1)
 
     x_test = data[train_set_size:, :-1]  # (189, 27, 1) #그냥 반복하고 있는데, 실제로는 매번 예측한 값을 반복해서 더하도록 변경해야 함
@@ -103,6 +105,7 @@ def Predict( args,model, x_test, y_test, scaler ) :
     y_test_pred = scaler.inverse_transform(y_test_pred.detach().numpy())
     y_test = scaler.inverse_transform(y_test.detach().numpy())
 
+#save - denormalized result
     yDf = pd.DataFrame({"y_pred": y_test_pred[:, 0],
                         "y_test": y_test[:, 0]})
 
@@ -136,7 +139,7 @@ def main():
     df1D = pd.read_csv(args.path, parse_dates=[args.date_column], encoding='utf-8', )
     resultDf, scaler = resampleFreq(args, df1D)  # 일 단위 데이터로 변환 및 결측치 선형 보간
 
-    x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)  # step
+    x_train, y_train, x_test, y_test = load_data(resultDf, args)  # step
 
     if args.state == "train" :
 
@@ -149,7 +152,6 @@ def main():
         Visualize(y_train_pred, y_train, args.result_train, "train")
 
     elif args.state == "test" :
-        x_train, y_train, x_test, y_test = load_data(resultDf, args.look_back)
         model = torch.load(args.model_save)
         y_test_pred, y_test, mseScore, rmseScore, R2Score = Predict(args, model, x_test, y_test, scaler)
         Visualize(y_test_pred, y_test, args.result_pred, "test")
@@ -160,20 +162,24 @@ def main():
         r2L = []
         model = torch.load(args.model_save)
         for i in range(args.iternum) :
+            print(" ------ ", i," ------ ")
             y_test_pred, _, mseScore, rmseScore, R2Score = Predict(args, model, x_test, y_test, scaler)
             mseL.append(float(mseScore.detach().numpy()))
             rmseL.append(rmseScore)
             r2L.append(R2Score)
+            print(" ")
 
         scoreDf = pd.DataFrame({ "MSE" : mseL,
                                 "RMSE" : rmseL,
                                 "R2 Score": r2L })
 
 
+
+        print("   ")
         print("test ",args.iternum,"번에 대한 평균값 : " )
         print(scoreDf.describe().iloc[1])
 
-        print(scoreDf.describe())
+        # print(scoreDf.describe())
 
     else :
         # viewer
@@ -187,6 +193,8 @@ def main():
         print("         x_test.shape - ", x_test.shape)
 
         print("모델 구조")
+        model = torch.load(args.model_save)
+        print(model)
 
 
 

@@ -8,13 +8,15 @@ def lstm_parse(parser, arg_str=None):
                             date_column = 'updated',
                             freq = '1D',
                             target_name='power_value',
-                            look_back = 28,
+                            look_back = 29,
                             input_dim = 1,
                             hidden_dim = 128,
                             num_layers = 2,
                             output_dim = 1,
                             lr = 0.01,
                             num_epochs = 2000,
+
+                            train_set_size=900,
 
                             path = 'Energy_pv/data/power_value.csv',
                             model_save = 'Energy_pv/model/model_e2000.pt',
